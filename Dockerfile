@@ -6,14 +6,14 @@ ENV GOTOOLCHAIN=auto
 
 WORKDIR /app
 
-COPY backend/go.mod backend/go.sum ./backend/
-WORKDIR /app/backend
+# Copy go mod and sum from backend directory
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-WORKDIR /app
-COPY backend/ ./backend/
+# Copy backend source code directly into WORKDIR /app
+COPY backend/ ./
 
-WORKDIR /app/backend
+# Build static binary for Linux
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s" \
     -o /app/api \
