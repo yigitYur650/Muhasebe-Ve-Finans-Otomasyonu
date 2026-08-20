@@ -33,3 +33,6 @@ export function PeriodBadge({ status, label }: PeriodBadgeProps) {
     </div>
   );
 }
+
+export default PeriodBadge;
+

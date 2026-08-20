@@ -148,13 +148,18 @@
 | `internal/service` | `mocks_test.go` | Servis testlerinde kullanılan `testify/mock` repository sahte nesne tanımları. |
 | `internal/service` | `period_service_test.go` | `PeriodService` rol yetki ve bakiye özeti unit testleri (4/4 PASS). |
 | `internal/service` | `transaction_service_test.go` | `TransactionService` zıt yönlü ters kayıt, çift iptal engeli ve kilitli dönem engeli unit testleri (3/3 PASS). |
+| `internal/service` | `import_service.go` | `ImportService` toplu CSV aktarım uygulaması (satır satır validasyon, UTF-8 BOM, decimal/tutar kontrolü, kilitli dönem engeli). |
+| `internal/service` | `import_service_test.go` | `ImportService` CSV satır hatası, kilitli dönem reddi ve kuruşu kuruşuna toplu aktarım unit testleri (3/3 PASS). |
+| `internal/service` | `advanced_edge_cases_test.go` | 6 İleri Düzey Uç Senaryo Test Paketi (Hassasiyet, Reversal of Reversal, Race condition, Negatif/Kesirli tutar, Idempotency izolasyonu, Kilitli bakiye değişmezliği) (6/6 PASS). |
 | `internal/handler` | `dto.go` | JSON İstek ve Yanıt DTO'ları (`OpenPeriodRequest`, `CreateTransactionRequest` decimal.Decimal, `ReverseTransactionRequest`, `ResponseEnvelope`). |
 | `internal/handler` | `errors.go` | Domain hatalarını standart JSON yanıt formatına (`{"success": false, "error": {...}}`) ve HTTP status kodlarına dönüştüren `CustomErrorHandler`. |
 | `internal/handler` | `period_handler.go` | Fiber HTTP `PeriodHandler` (`ListPeriods`, `OpenNextPeriod`, `LockPeriod`, `GetPeriodSummary`). |
 | `internal/handler` | `tenant_handler.go` | Fiber HTTP `TenantHandler` (`ListMembers`, `AddMember`, `UpdateMemberRole`, `RemoveMember`). |
 | `internal/handler` | `transaction_handler.go` | Fiber HTTP `TransactionHandler` (`CreateTransaction`, `ReverseTransaction`, `ListTransactions`). |
+| `internal/handler` | `export_handler.go` | Fiber HTTP `ExportHandler` (`ExportTransactionsCSV` - UTF-8 BOM ile Excel uyumlu CSV akışı, `DownloadSampleCSVTemplate`). |
+| `internal/handler` | `import_handler.go` | Fiber HTTP `ImportHandler` (`ImportTransactionsCSV` - multipart/form-data ve raw body CSV toplu aktarım). |
 | `internal/handler` | `router.go` | Fiber yönlendirme tablosunu, recover, context, idempotency ve tenant üye middleware/rotalarını bağlayan `SetupRouter`. |
-| `internal/handler/middleware` | `context_middleware.go` | HTTP header'larından (`X-Tenant-ID`, `X-User-ID`, `X-User-Role`) oturum verisini parse edip Fiber context locals'a koyan middleware. |
+| `internal/handler/middleware` | `context_middleware.go` | HTTP header'larından (`X-Tenant-ID`, `X-User-ID`, `X-User-Role`) oturum verisini parse eden ve `GetTenantID`, `GetUserID` yardımcılarını sunan middleware. |
 | `internal/handler/middleware` | `idempotency_middleware.go` | `Idempotency-Key` başlığını denetleyen, tekrar isteklerinde önceden üretilmiş yanıtı (HTTP status & JSON body) DB'den dönen middleware. |
 | `internal/handler/middleware` | `auth_middleware.go` | Supabase JWT doğrulaması (`aud: "authenticated"`, `exp`) ve veritabanı tenant rol denetimi (`tenantRepo.GetMember`) yapan middleware. |
 | `internal/handler/middleware` | `auth_middleware_test.go` | JWT doğrulama unit testleri (Geçerli token, süresi dolmuş token, sahte imza, yetkisiz tenant erişimi) (4/4 PASS). |
@@ -167,16 +172,24 @@
 
 | Katman / Paket | Dosya Adı | Açıklama |
 |---|---|---|
-| `app/[locale]` | `layout.tsx` | Next.js 15 App Router kök düzeni (`NextIntlClientProvider`, Inter font ve Tailwind CSS). |
-| `app/[locale]` | `page.tsx` | KPI bakiye kartları, dönem seçici, arşiv uyarı banner'ı, üye yönetim modalı ve işlem defteri tablosu. |
+| `app` | `page.tsx` | Kök dizin `/` isteklerini varsayılan dil olan `/tr` rotasına sunucu taraflı güvenle yönlendiren `RootPage`. |
+| `app` | `layout.tsx` | Next.js 15 App Router kök dizin yerleşim ilklendiricisi `RootLayout`. |
+| `app/[locale]` | `layout.tsx` | Next.js 15 App Router locale yerleşimi (`NextIntlClientProvider`, Inter font ve Tailwind CSS). |
+| `app/[locale]` | `page.tsx` | KPI bakiye kartları, dönem seçici, arşiv uyarı banner'ı, CSV dışa/içe aktar butonları ve işlem defteri tablosu. |
+
 | `app/[locale]/login` | `page.tsx` | Supabase Auth entegrasyonlu, i18n destekli (hardcoded metinsiz) kullanıcı giriş sayfası. |
-| `components/shared` | `Header.tsx` | Marka başlığı, tenant etiketi, rol rozeti ve dil değiştirici (`tr`/`en`) üst navigasyon çubuğu. |
+| `components/auth` | `ForgotPasswordDialog.tsx` | Güvenlik sorusu yanıtı ile şifre sıfırlama modalı. |
+| `components/auth` | `ChangePasswordDialog.tsx` | Oturum açmış kullanıcılar için güvenlik sorusu ve şifre güncelleme modalı. |
+| `components/shared` | `Header.tsx` | Marka başlığı, tenant etiketi, rol rozeti, şifre değiştir butonu ve dil değiştirici (`tr`/`en`) üst navigasyon çubuğu. |
+
 | `components/shared` | `PeriodBadge.tsx` | Dönemin kilitli (`locked`) veya açık (`open`) olma durumunu görsel olarak sunan durum rozeti. |
 | `components/ledger` | `PeriodSelector.tsx` | Tüm açık ve kilitli geçmiş dönemleri listeleyen ve salt-okunur arşiv modunu tetikleyen Select bileşeni. |
 | `components/ledger` | `QuickEntryRow.tsx` | Excel stili klavye odaklı hızlı satır girişi barı (`Enter`, `Tab`, `G/C`, `Esc`, inline decimal validasyonu). |
 | `components/ledger` | `KpiSummaryCards.tsx` | 4 Metrik Kartlı canlı finansal bakiye özeti (Açılış, Gelir, Gider, Net Kasa, `formatTL` kuruş hassasiyeti). |
 | `components/ledger` | `PeriodHistoryView.tsx` | Kapanmış ve kilitlenmiş geçmiş dönemlerin karşılaştırmalı salt-okunur arşiv tablosu ("Defteri İncele" butonu ile). |
 | `components/ledger` | `TransactionTable.tsx` | TanStack Table (`@tanstack/react-table`) defter tablosu, filtreleme araç çubuğu ve ters kayıt görsel stilleri. |
+| `components/ledger` | `ExportCsvButton.tsx` | Excel Türkçe karakter uyumlu (UTF-8 BOM) dönemsel CSV indirme butonu. |
+| `components/ledger` | `ImportCsvDialog.tsx` | Drag & drop veya dosya seçici ile toplu CSV yükleme, örnek şablon indirme ve satır hatası raporlama modalı. |
 | `components/ledger` | `CreateTransactionDialog.tsx` | Hızlı satır girişi modalı, `crypto.randomUUID()` ile frontend idempotency key üretimi. |
 | `components/ledger` | `ReverseTransactionDialog.tsx` | Ters kayıt (iptal) modalı, yasal denetim uyarısı ve gerekçe (`reason`) zorunluluğu. |
 | `components/ledger` | `PeriodActionDialog.tsx` | Rol denetimli dönem kilitleme (`LockPeriod`) ve yeni dönem açma (`OpenNextPeriod`) modalı. |
@@ -186,7 +199,8 @@
 | `lib` | `decimal.ts` | `decimal.js` ile float taşmasız parasal hesaplama metotları ve `formatTL` para formatlayıcı. |
 | `lib` | `api.ts` | Go Backend `/api/v1` rotalarına otomatik Supabase Bearer token enjeksiyonu ile erişen merkezi HTTP istemcisi. |
 | `lib` | `utils.ts` | `clsx` ve `tailwind-merge` birleştiren `cn` yardımcı metodu. |
-| `messages` | `tr.json`, `en.json` | Hardcoded metin kullanımını engelleyen modüler i18n çeviri sözlükleri (`common`, `period`, `transaction`, `auth`, `errors`). |
+| `messages` | `tr.json`, `en.json` | Hardcoded metin kullanımını engelleyen modüler i18n çeviri sözlükleri (`common`, `period`, `transaction`, `auth`, `errors`, `import_export`). |
 | `i18n` | `request.ts`, `middleware.ts` | `next-intl` dili otomatik algılama ve dinamik rota yönlendirme middleware'i. |
 | Root | `next.config.mjs` | `next-intl` eklentisini Next.js derleme sürecine entegre eden konfigürasyon dosyası. |
+
 

@@ -149,3 +149,6 @@ export function ReverseTransactionDialog({
     </Dialog>
   );
 }
+
+export default ReverseTransactionDialog;
+

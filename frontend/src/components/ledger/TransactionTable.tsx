@@ -307,3 +307,6 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
     </div>
   );
 }
+
+export default TransactionTable;
+

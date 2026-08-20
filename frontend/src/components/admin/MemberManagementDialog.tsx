@@ -203,3 +203,6 @@ export function MemberManagementDialog({
     </Dialog>
   );
 }
+
+export default MemberManagementDialog;
+

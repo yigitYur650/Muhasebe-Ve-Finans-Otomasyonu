@@ -1,7 +1,9 @@
 {
   "common": {
-    "appName": "Cash & General Ledger Platform",
+    "appName": "Öncü Otogaz — Cash & General Ledger",
+    "tenantName": "Öncü Otogaz Main Branch",
     "open": "Open",
+
     "locked": "Locked",
     "status": "Status",
     "actions": "Actions",
@@ -99,15 +101,30 @@
     "roleAdmin": "Administrator",
     "roleMuhasebeci": "Accountant",
     "roleStandart": "Standard User",
-    "loginTitle": "Sign In",
-    "loginDescription": "Enter your credentials to access the Cash & General Ledger Platform.",
+    "loginTitle": "Öncü Otogaz Ledger Management Portal",
+    "loginDescription": "Enter your credentials to access Öncü Otogaz Cash & General Ledger Platform.",
     "email": "Email Address",
     "password": "Password",
     "loginAction": "Sign In",
     "loginSuccess": "Sign in successful! Redirecting...",
     "invalidCredentials": "Invalid email or password.",
-    "logoutAction": "Sign Out"
+    "logoutAction": "Sign Out",
+    "forgotPassword": "Forgot Password",
+    "forgotPasswordTitle": "Reset Password via Security Question",
+    "forgotPasswordDesc": "Enter your registered email to answer your security question and reset your password.",
+    "securityQuestion": "Security Question",
+    "securityAnswer": "Security Answer",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "resetAction": "Reset Password",
+    "resetSuccess": "Password reset successfully! You can now sign in.",
+    "changePassword": "Change Password",
+    "changePasswordTitle": "Update Password & Security Question",
+    "saveSecurity": "Save Security Settings",
+    "securitySaved": "Security settings updated successfully.",
+    "passwordMismatch": "Passwords do not match."
   },
+
   "errors": {
     "PERIOD_LOCKED": "Cannot perform transaction because this period is locked.",
     "INVALID_AMOUNT": "Transaction amount must be greater than zero.",
@@ -141,5 +158,28 @@
     "no_history": "No archived periods found yet.",
     "status_locked": "Locked (Read-Only)",
     "status_open": "Active Period"
+  },
+  "import_export": {
+    "exportCsv": "Export CSV",
+    "export_csv": "Export CSV",
+    "importCsv": "Bulk Import CSV",
+    "import_csv": "Import CSV",
+    "importTitle": "Bulk Transaction CSV Import",
+    "importDescription": "Bulk upload CSV files exported from Excel or accounting software into the active period.",
+    "dragDropHint": "Drag & drop your CSV file here or select from your computer",
+    "selectFile": "Select CSV File",
+    "upload_file": "Select or Drag File",
+    "downloadTemplate": "Download Sample CSV Template",
+    "download_template": "Download Sample Template",
+    "uploading": "Importing...",
+    "startImport": "Start Import",
+    "successTitle": "Bulk Import Successful",
+    "successSummary": "Imported {count} transaction records totaling {amount} TL into the period.",
+    "success": "Data imported successfully",
+    "importError": "An error occurred during import",
+    "error": "An error occurred during import",
+    "invalid_format": "Invalid file format"
   }
 }
+
+

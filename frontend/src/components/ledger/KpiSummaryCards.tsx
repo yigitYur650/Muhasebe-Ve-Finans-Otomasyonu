@@ -30,19 +30,19 @@ export const KpiSummaryCards: React.FC<KpiSummaryCardsProps> = ({ summary, loadi
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {/* Starting / Rollover Balance */}
-      <Card className="border shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-sm">
+      <Card className="border border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
             {t('starting_balance')}
           </CardTitle>
-          <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-            <Wallet className="h-4 w-4" />
+          <div className="p-2.5 rounded-lg bg-slate-100 text-slate-700">
+            <Wallet className="h-5 w-5" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-slate-100">
+          <div className="text-2xl font-extrabold tracking-tight text-slate-900">
             {loading ? (
-              <span className="animate-pulse bg-slate-700 h-7 w-24 block rounded" />
+              <span className="animate-pulse bg-slate-200 h-7 w-28 block rounded" />
             ) : (
               formatTL(startingBalance)
             )}
@@ -51,19 +51,19 @@ export const KpiSummaryCards: React.FC<KpiSummaryCardsProps> = ({ summary, loadi
       </Card>
 
       {/* Total Income */}
-      <Card className="border shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-emerald-950/40 to-emerald-900/30 backdrop-blur-sm border-emerald-800/40">
+      <Card className="border border-emerald-200 shadow-sm hover:shadow-md transition-shadow bg-emerald-50/60">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+          <CardTitle className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
             {t('total_in')}
           </CardTitle>
-          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-            <TrendingUp className="h-4 w-4" />
+          <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-700">
+            <TrendingUp className="h-5 w-5" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-emerald-300">
+          <div className="text-2xl font-extrabold tracking-tight text-emerald-700">
             {loading ? (
-              <span className="animate-pulse bg-emerald-900/50 h-7 w-24 block rounded" />
+              <span className="animate-pulse bg-emerald-200 h-7 w-28 block rounded" />
             ) : (
               formatTL(totalIn)
             )}
@@ -72,19 +72,19 @@ export const KpiSummaryCards: React.FC<KpiSummaryCardsProps> = ({ summary, loadi
       </Card>
 
       {/* Total Expense */}
-      <Card className="border shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-rose-950/40 to-rose-900/30 backdrop-blur-sm border-rose-800/40">
+      <Card className="border border-rose-200 shadow-sm hover:shadow-md transition-shadow bg-rose-50/60">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
+          <CardTitle className="text-xs font-bold text-rose-700 uppercase tracking-wider">
             {t('total_out')}
           </CardTitle>
-          <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
-            <TrendingDown className="h-4 w-4" />
+          <div className="p-2.5 rounded-lg bg-rose-100 text-rose-700">
+            <TrendingDown className="h-5 w-5" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-rose-300">
+          <div className="text-2xl font-extrabold tracking-tight text-rose-700">
             {loading ? (
-              <span className="animate-pulse bg-rose-900/50 h-7 w-24 block rounded" />
+              <span className="animate-pulse bg-rose-200 h-7 w-28 block rounded" />
             ) : (
               formatTL(totalOut)
             )}
@@ -93,19 +93,19 @@ export const KpiSummaryCards: React.FC<KpiSummaryCardsProps> = ({ summary, loadi
       </Card>
 
       {/* Net Cash / Closing Balance */}
-      <Card className="border shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-cyan-950/40 to-blue-900/30 backdrop-blur-sm border-cyan-800/40">
+      <Card className="border border-blue-200 shadow-sm hover:shadow-md transition-shadow bg-blue-50/60">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+          <CardTitle className="text-xs font-bold text-blue-700 uppercase tracking-wider">
             {t('closing_balance')}
           </CardTitle>
-          <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
-            <Scale className="h-4 w-4" />
+          <div className="p-2.5 rounded-lg bg-blue-100 text-blue-700">
+            <Scale className="h-5 w-5" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-cyan-200">
+          <div className="text-2xl font-extrabold tracking-tight text-blue-800">
             {loading ? (
-              <span className="animate-pulse bg-cyan-900/50 h-7 w-24 block rounded" />
+              <span className="animate-pulse bg-blue-200 h-7 w-28 block rounded" />
             ) : (
               formatTL(closingBalance)
             )}
@@ -115,3 +115,5 @@ export const KpiSummaryCards: React.FC<KpiSummaryCardsProps> = ({ summary, loadi
     </div>
   );
 };
+
+export default KpiSummaryCards;

@@ -135,3 +135,6 @@ export const PeriodHistoryView: React.FC<PeriodHistoryViewProps> = ({
     </Card>
   );
 };
+
+export default PeriodHistoryView;
+

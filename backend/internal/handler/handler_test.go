@@ -145,6 +145,60 @@ func (m *MockTransactionRepo) MarkReversed(ctx context.Context, targetID, revers
 	return args.Error(0)
 }
 
+type MockPeriodRepo struct {
+	mock.Mock
+}
+
+func (m *MockPeriodRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Period, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Period), args.Error(1)
+}
+
+func (m *MockPeriodRepo) GetByLabel(ctx context.Context, tenantID uuid.UUID, label string) (*domain.Period, error) {
+	args := m.Called(ctx, tenantID, label)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Period), args.Error(1)
+}
+
+func (m *MockPeriodRepo) GetLatestByTenant(ctx context.Context, tenantID uuid.UUID) (*domain.Period, error) {
+	args := m.Called(ctx, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Period), args.Error(1)
+}
+
+func (m *MockPeriodRepo) OpenNextPeriod(ctx context.Context, tenantID uuid.UUID, label string) (*domain.Period, error) {
+	args := m.Called(ctx, tenantID, label)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Period), args.Error(1)
+}
+
+func (m *MockPeriodRepo) Create(ctx context.Context, period *domain.Period) error {
+	args := m.Called(ctx, period)
+	return args.Error(0)
+}
+
+func (m *MockPeriodRepo) Lock(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockPeriodRepo) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
+	args := m.Called(ctx, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.PeriodHistoryItem), args.Error(1)
+}
+
 func setupTestApp(
 	periodSvc domain.PeriodService,
 	txSvc domain.TransactionService,
@@ -154,9 +208,11 @@ func setupTestApp(
 	app := fiber.New(fiber.Config{
 		ErrorHandler: handler.CustomErrorHandler,
 	})
-	handler.SetupRouter(app, periodSvc, txSvc, txRepo, idemRepo)
+	mockPeriodRepo := new(MockPeriodRepo)
+	handler.SetupRouter(app, periodSvc, txSvc, mockPeriodRepo, txRepo, idemRepo)
 	return app
 }
+
 
 func TestIdempotencyMiddleware_DuplicateRequestCached(t *testing.T) {
 	tenantID := uuid.New()

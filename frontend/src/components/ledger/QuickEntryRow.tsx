@@ -245,3 +245,6 @@ export function QuickEntryRow({ isPeriodLocked, onSubmitTransaction }: QuickEntr
     </div>
   );
 }
+
+export default QuickEntryRow;
+

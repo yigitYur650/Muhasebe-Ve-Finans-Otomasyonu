@@ -198,3 +198,6 @@ export function PeriodActionDialog({
     </Dialog>
   );
 }
+
+export default PeriodActionDialog;
+

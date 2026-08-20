@@ -2,10 +2,12 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { locales } from '@/i18n/request';
+import trMessages from '@/messages/tr.json';
+import enMessages from '@/messages/en.json';
 import '../globals.css';
 
 export const metadata = {
-  title: 'Kasa ve Defter-i Kebir Platformu',
+  title: 'Öncü Otogaz — Kasa ve Defter-i Kebir Platformu',
   description: 'Excel hızında, devir garantili yeni nesil kasa ve defter-i kebir platformu.',
 };
 
@@ -15,7 +17,7 @@ export function generateStaticParams() {
 
 export default async function LocaleLayout({
   children,
-  params
+  params,
 }: {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
@@ -26,7 +28,16 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  const messages = await getMessages();
+  let messages;
+  try {
+    messages = await getMessages();
+  } catch {
+    messages = locale === 'en' ? enMessages : trMessages;
+  }
+
+  if (!messages || Object.keys(messages).length === 0) {
+    messages = locale === 'en' ? enMessages : trMessages;
+  }
 
   return (
     <html lang={locale}>

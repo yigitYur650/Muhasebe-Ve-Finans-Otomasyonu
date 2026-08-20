@@ -2,10 +2,12 @@ package domain
 
 import (
 	"context"
+	"io"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
 
 // PeriodSummary represents the financial balance summary of a period.
 type PeriodSummary struct {
@@ -38,3 +40,15 @@ type TenantService interface {
 	UpdateMemberRole(ctx context.Context, tenantID, requestingUserID, targetUserID uuid.UUID, newRole Role) error
 	RemoveMember(ctx context.Context, tenantID, requestingUserID, targetUserID uuid.UUID) error
 }
+
+// ImportResult represents the output of a bulk CSV transaction import operation.
+type ImportResult struct {
+	ImportedCount int             `json:"imported_count"`
+	TotalAmount   decimal.Decimal `json:"total_amount"`
+}
+
+// ImportService defines business logic operations for CSV bulk import.
+type ImportService interface {
+	ImportTransactionsFromCSV(ctx context.Context, tenantID, periodID uuid.UUID, r io.Reader, userID uuid.UUID) (*ImportResult, error)
+}
+

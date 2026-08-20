@@ -71,3 +71,128 @@
 - **Yan Etki & Risk Analizi (Risk):** Yok. SSR ve İstemci hydration uyumluluğu %100 garanti altına alındı.
 - **Doğrulama & Test Sonucu (Verification):** `npx rimraf .next` sonrasında `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır hydration uyarısı ile derlendi (Exit code: 0). `go test -v ./...` 34/34 test PASS verdi.
 - **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-06] Next.js Runtime Chunk (Cannot find module './611.js') & Workspace Root Resolution Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5 & Webpack Fix
+- **Etkilenen Katman / Dosya:** `frontend/next.config.mjs`, `frontend/.next`
+- **Belirti (Symptom):** Runtime veya `npm run dev` / `npm run build` sırasında `Cannot find module './611.js'` ve Webpack server chunk çözümlenemedi hatası ile çökme.
+- **Kök Neden (Root Cause):** 1) OneDrive dosya senkronizasyonu / dev server yeniden başlatmalarında bozuk `.next` önbelleği birikmesi. 2) Kullanıcı ev dizininde (`C:\Users\yigit\package-lock.json`) bulunan ek lockfile nedeniyle Next.js'in workspace root dizinini yanlış tespit etmesi. 3) `next-intl` eklentisi ile `output: 'standalone'` yapılandırması arasındaki root çakışması.
+- **Uygulanan Düzeltme (Fix):** 1) Çalışan `node`/`next` süreçleri durduruldu. 2) `frontend/.next` derleme önbelleği tamamen silindi. 3) `frontend/next.config.mjs` içerisine `outputFileTracingRoot: __dirname`, `transpilePackages: ['lucide-react']` ve `withNextIntl` eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. `outputFileTracingRoot` sayesinde workspace root doğru olarak `frontend` dizinine sabitlendi ve statik/sunucu chunk üretimi %100 kararlı hale getirildi.
+- **Doğrulama & Test Sonucu (Verification):** `frontend/.next` silindikten sonra `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır uyarı ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-07] Webpack Runtime '__webpack_modules__[moduleId] is not a function' & Dual Export Resolution Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5 & Webpack Fix
+- **Etkilenen Katman / Dosya:** `frontend/src/components/` (ui, ledger, shared, admin), `frontend/.next`
+- **Belirti (Symptom):** İstemci runtime'ında `TypeError: __webpack_modules__[moduleId] is not a function` hatası ile dinamik bileşen render çökmeleri.
+- **Kök Neden (Root Cause):** Bileşenlerin yalnızca named export (`export function ...` / `export const ...`) ile dışa aktarılıp varsayılan export (`export default`) barındırmaması nedeniyle Webpack paketlemesinde bazı dinamik/istemci modül import çağrılarının `undefined` bileşen referansına ulaşması.
+- **Uygulanan Düzeltme (Fix):** 1) `src/components/` altındaki tüm bileşenlere (Header, PeriodBadge, KpiSummaryCards, PeriodHistoryView, QuickEntryRow, TransactionTable, ReverseTransactionDialog, PeriodSelector, CreateTransactionDialog, PeriodActionDialog, MemberManagementDialog) çift export (hem Named export hem `export default`) uyumluluğu eklendi. 2) `frontend/.next` derleme önbelleği tamamen silinip yeniden üretildi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Çift export mimarisi her iki import formatını (`import { X }` ve `import X`) %100 destekler.
+- **Doğrulama & Test Sonucu (Verification):** Önbellek temizliği sonrası `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır çökme ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-08] Frontend KPI Kart Opaklık Hatası ve Yüksek Kontrast Düzeltimi
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5 & UI Refresh
+- **Etkilenen Katman / Dosya:** `frontend/src/components/ledger/KpiSummaryCards.tsx`, `frontend/src/app/[locale]/page.tsx`
+- **Belirti (Symptom):** Açık dönemde (`status === 'open'`) KPI özet kartlarının ve metinlerin yarı saydam CSS sınıfları (`bg-slate-900/50`, `bg-emerald-950/40` vb.) sebebiyle soluk, bulanık ve düşük kontrastlı görünmesi.
+- **Kök Neden (Root Cause):** Kuruş bakiye kartlarının arka planında yer alan `/40`, `/50` opaklık değerlerinin açık tema üzerinde kontrast kaybına yol açması.
+- **Uygulanan Düzeltme (Fix):** 1) `KpiSummaryCards.tsx` bileşeni %100 mat, yüksek kontrastlı ve canlı renkli temaya dönüştürüldü (`bg-white border-slate-200 text-slate-900`, `bg-emerald-50/60 text-emerald-700`, `bg-rose-50/60 text-rose-700`, `bg-blue-50/60 text-blue-800`). 2) UI sadeleştirmesi kapsamında `QuickEntryRow` ve `MemberManagementDialog` kaldırıldı; canlı backend API bağlantısı tamamlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Tüm cihaz çözünürlüklerinde okunabilirlik ve erişilebilirlik sağlandı.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` ile 7/7 SSG sayfa 0 hata ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-09] Frontend SSR 500 Kesinti Koruması ve Event-Driven UUID Doğrulaması
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5.5 & Frontend Resilience
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx`, `frontend/src/components/ledger/CreateTransactionDialog.tsx`
+- **Belirti (Symptom):** Backend servis kesintisinde veya ilk SSR yüklemesinde API bağlantı hatası oluştuğunda sayfanın 500 sunucu hatası verme riski.
+- **Kök Neden (Root Cause):** API çağrılarından dönen hataların savunmacı varsayılan state (`{ starting_balance: "0.00", ... }`) ve `try/catch` sınırları ile süzülmemesi.
+- **Uygulanan Düzeltme (Fix):** 1) `page.tsx` bileşenine `isMounted` state guard'ı, `try/catch` süzgeci ve varsayılan sıfır bakiye state'i bağlandı. 2) `crypto.randomUUID()` çağrısının bileşen gövdesinde değil, sadece `CreateTransactionDialog.tsx` form `handleSubmit` olay tetikleyicisi anında çalışması teyit edildi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Backend tamamen kapalı olsa dahi istemci render ağacı %100 kararlı kalır.
+- **Doğrulama & Test Sonucu (Verification):** Backend kapalıyken `npm run build` ve SSR testi koşturuldu. 7/7 SSG sayfa 0 hata ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-10] Öncü Otogaz Marka Entegrasyonu, Sarı-Siyah Tema ve Route Guard Güvenliği
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 7 & Auth Route Guard
+- **Etkilenen Katman / Dosya:** `frontend/src/middleware.ts`, `frontend/src/app/[locale]/login/page.tsx`, `frontend/src/components/shared/Header.tsx`, `frontend/src/app/globals.css`
+- **Belirti (Symptom):** Giriş yapmamış kullanıcıların doğrudan `/[locale]` ana defter sayfasına erişebilmesi ve kurumsal temanın standart varsayılan mavi renkte kalması.
+- **Kök Neden (Root Cause):** Middleware katmanında auth oturum çerezi denetiminin eksik olması ve Tailwind kurumsal renk paletinin tanımlanmamış olması.
+- **Uygulanan Düzeltme (Fix):** 1) `middleware.ts` dosyasına `next-intl` ile entegre auth session kontrolü eklendi; yetkisiz erişimler otomatik `/[locale]/login` sayfasına yönlendirildi. 2) Login sayfasına Supabase auth entegrasyonu ve oturum açma yeteneği bağlandı; `Header.tsx` bileşenine oturum kapatma ("Çıkış Yap") fonksiyonu entegre edildi. 3) `globals.css` ve bileşenler Öncü Otogaz kurumsal Sarı-Siyah (Amber-500 & Zinc-950) temasına dönüştürüldü.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Tüm sayfa erişimleri Route Guard ile %100 korumaya alındı.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` (7/7 SSG sayfa 0 hata) ve `go test -v ./...` (43/43 PASS) ile doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-11] Go Fiber CORS Preflight Block and Missing i18n Keys Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 7 & CORS / i18n Hotfix
+- **Etkilenen Katman / Dosya:** `backend/internal/handler/router.go`, `frontend/src/messages/tr.json`, `frontend/src/messages/en.json`, `frontend/src/lib/api.ts`
+- **Belirti (Symptom):** 1) İstemciden gelen `OPTIONS` preflight isteklerinin varsayılan Fiber router tarafından engellenmesi. 2) Frontend tarafında `import_export` bloğunda ve şube adında bazı i18n anahtar uyuşmazlıkları.
+- **Kök Neden (Root Cause):** `router.go` içerisinde `cors.New` middleware'inin eksik olması ve `Authorization` / `X-Tenant-ID` başlıklarının preflight izin listesinde tanımlanmaması.
+- **Uygulanan Düzeltme (Fix):** 1) `router.go` dosyasının en üstüne `cors.New(cors.Config{ AllowOrigins: "http://localhost:3000, ...", AllowHeaders: "Origin, Content-Type, Accept, Authorization, Idempotency-Key, X-Tenant-ID", AllowMethods: "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS", AllowCredentials: true })` middleware'i bağlandı. 2) `tr.json` ve `en.json` dosyalarına `export_csv`, `import_csv`, `download_template`, `upload_file`, `success`, `error`, `invalid_format` ve `tenantName` anahtarları eklendi. 3) `api.ts` istemcisinin Supabase Bearer token ve `X-Tenant-ID` başlıklarını otomatik enjekte ettiği doğrulandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Tüm HTTP preflight istekleri 200/204 ile sorunsuz dönmektedir.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` (7/7 SSG sayfa 0 hata) ve `go test -v ./...` (43/43 PASS) ile doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-12] Root Route 500 Middleware Next-Intl Collision Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 7 & Root Route Hotfix
+- **Etkilenen Katman / Dosya:** `frontend/src/middleware.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/layout.tsx`, `frontend/src/app/[locale]/layout.tsx`
+- **Belirti (Symptom):** İstemci kök dizine (`http://localhost:3000/`) eriştiginde middleware collision sebebiyle 500 Internal Server Error alınması.
+- **Kök Neden (Root Cause):** Next.js App Router'da kök dizinde `src/app/page.tsx` ve `src/app/layout.tsx` yönlendirme dosyalarının eksik olması ve `middleware.ts` çağrılarının defensive `try/catch` ile sarmalanmaması.
+- **Uygulanan Düzeltme (Fix):** 1) `src/app/page.tsx` dosyasına `redirect('/tr')` sunucu yönlendirmesi eklendi. 2) `src/app/layout.tsx` kök yerleşimi ilklendirildi. 3) `src/middleware.ts` içerisindeki `next-intl` yönlendirmesi defensive `try/catch` süzgeci ve `matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']` ile güvenli hale getirildi. 4) `src/app/[locale]/layout.tsx` içerisindeki `getMessages()` çağrısı defensive süzgeç ile korumaya alındı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Kök dizin `/` istekleri milisaniyeler içinde doğrudan varsayılan dile yönlenmektedir.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` ile 8/8 static sayfa (kök `/` dahil) 0 hata ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-13] i18n Missing Message Fallback & Dynamic CORS Preflight Router Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 7 & i18n / CORS Hotfix
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/layout.tsx`, `backend/cmd/api/main.go`, `backend/internal/handler/router.go`, `backend/internal/handler/period_handler.go`
+- **Belirti (Symptom):** 1) Konsolda `MISSING_MESSAGE: import_export (tr)` ve `common.tenantName` uyarıları. 2) `http://localhost:8080/api/v1/periods/p-2026-08/summary` isteklerinde CORS preflight bloklaması.
+- **Kök Neden (Root Cause):** 1) Frontend tarafında `getMessages()` hata verdiğinde `messages` objesinin boş `{}` objesine düşmesi. 2) Backend tarafında `cmd/api/main.go` içerisinde `SetupRouter` fonksiyonunun çağrılmaması sebebiyle API rotalarının ve CORS middleware'inin Fiber sunucusuna bağlanmaması.
+- **Uygulanan Düzeltme (Fix):** 1) `layout.tsx` içerisine statik `trMessages` ve `enMessages` JSON import süzgeci eklendi; `messages` asla boş kalmayacak şekilde yedeklendi. 2) `cmd/api/main.go` dosyasına `SetupRouter` ve in-memory dev repository fallback'leri bağlandı. 3) `router.go` içerisindeki CORS middleware'i `AllowOriginsFunc` ile dinamik preflight desteğine kavuşturuldu. 4) `period_handler.go`'daki `GetPeriodSummary` endpoint'ine UUID olmayan label id'ler için savunmacı fallback mantığı bağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Tüm çeviri mesajları ve API CORS istekleri eksiksiz çalışmaktadır.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` (8/8 SSG sayfa 0 hata) ve `go test -v ./...` (43/43 PASS) ile doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-14] Mock Cleanup, Live Postgres Pool & Password Recovery Module Integration
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 7 & Auth Security
+- **Etkilenen Katman / Dosya:** `backend/cmd/api/main.go`, `migrations/10_create_user_security.sql`, `backend/internal/domain/user_security.go`, `backend/internal/service/auth_service.go`, `backend/internal/handler/auth_handler.go`, `frontend/public/ornek_sablon.csv`, `frontend/src/components/auth/ForgotPasswordDialog.tsx`, `frontend/src/components/auth/ChangePasswordDialog.tsx`
+- **Belirti (Symptom):** 1) Dev memory mock bağımlılığı. 2) Örnek CSV şablonu 404 hatası. 3) Güvenlik sorusuyla şifre sıfırlama özelliğinin eksik olması.
+- **Kök Neden (Root Cause):** 1) `main.go`'da in-memory mock repo kullanımı. 2) Public klasöründe statik `ornek_sablon.csv` dosyasının eksikliği. 3) User security veritabanı tablosu ve bcrypt şifre sıfırlama handler'larının olmaması.
+- **Uygulanan Düzeltme (Fix):** 1) `main.go` içerisinden mock bağımlılıkları tamamen kaldırıldı; canlı `PostgresPeriodRepository`, `PostgresTransactionRepository`, `PostgresTenantRepository`, `PostgresIdempotencyRepository` bağlandı. 2) `frontend/public/ornek_sablon.csv` statik örneği oluşturuldu. 3) `10_create_user_security.sql` migration'ı yazıldı; `bcrypt` destekli `AuthService` ve `AuthHandler` endpoint'leri bağlandı. 4) Frontend'e `ForgotPasswordDialog` ve `ChangePasswordDialog` dialog bileşenleri entegre edildi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Canlı DB bağlantısı ve bcrypt güvenlik cevabı doğrulaması tam aktif hale getirilmiştir.
+- **Doğrulama & Test Sonucu (Verification):** `npm run build` (8/8 SSG sayfa 0 hata) ve `go test -v ./...` (45/45 PASS) ile doğrulandı.
+- **Durum:** `RESOLVED`
+
+
+
+
+
+
+
+

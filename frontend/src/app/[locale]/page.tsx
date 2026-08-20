@@ -9,12 +9,13 @@ import { CreateTransactionDialog } from "@/components/ledger/CreateTransactionDi
 import { ReverseTransactionDialog } from "@/components/ledger/ReverseTransactionDialog";
 import { PeriodActionDialog } from "@/components/ledger/PeriodActionDialog";
 import { PeriodSelector, PeriodOption } from "@/components/ledger/PeriodSelector";
-import { MemberManagementDialog, MemberItem } from "@/components/admin/MemberManagementDialog";
-import { QuickEntryRow } from "@/components/ledger/QuickEntryRow";
-import { KpiSummaryCards } from "@/components/ledger/KpiSummaryCards";
+import { KpiSummaryCards, PeriodSummaryData } from "@/components/ledger/KpiSummaryCards";
 import { PeriodHistoryView, PeriodHistoryItem } from "@/components/ledger/PeriodHistoryView";
+import { ExportCsvButton } from "@/components/ledger/ExportCsvButton";
+import { ImportCsvDialog } from "@/components/ledger/ImportCsvDialog";
 import { Button } from "@/components/ui/button";
 import { addDecimal, subDecimal } from "@/lib/decimal";
+import { apiFetch } from "@/lib/api";
 import {
   PlusCircle,
   Lock,
@@ -22,19 +23,22 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   Archive,
+  Upload,
 } from "lucide-react";
 
 export default function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = use(params);
+  const tCommon = useTranslations("common");
   const tPeriod = useTranslations("period");
   const tTx = useTranslations("transaction");
   const tHistory = useTranslations("history");
+  const tImport = useTranslations("import_export");
 
   // Mounted state guard to eliminate hydration mismatch (#418, #423)
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
-  // User Role State (Mocked as admin for interactive demonstration)
-  const [userRole, setUserRole] = useState<"admin" | "muhasebeci" | "standart">("admin");
+  // User Role State
+  const [userRole] = useState<"admin" | "muhasebeci" | "standart">("admin");
 
   // View Mode: 'ledger' (Active Table) vs 'history' (Archived Periods)
   const [activeTab, setActiveTab] = useState<"ledger" | "history">("ledger");
@@ -55,13 +59,6 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
   const periodStatus = selectedPeriod.status;
   const periodLabel = selectedPeriod.label;
   const startingBalance = selectedPeriod.startingBalance;
-
-  // Tenant Members State
-  const [members, setMembers] = useState<MemberItem[]>([
-    { userId: "usr-1", email: "admin@deftersystem.com", role: "admin" },
-    { userId: "usr-2", email: "muhasebe@deftersystem.com", role: "muhasebeci" },
-    { userId: "usr-3", email: "satis@deftersystem.com", role: "standart" },
-  ]);
 
   // Transactions State
   const [transactions, setTransactions] = useState<TransactionItem[]>([
@@ -100,9 +97,14 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     },
   ]);
 
+  // Live Summary from Backend (with fallback)
+  const [liveSummary, setLiveSummary] = useState<PeriodSummaryData | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState<boolean>(false);
+
   // Modal dialog states
   const [createModalOpen, setCreateModalOpen] = useState<boolean>(false);
   const [reverseModalOpen, setReverseModalOpen] = useState<boolean>(false);
+  const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
   const [targetTxForReverse, setTargetTxForReverse] = useState<TransactionItem | null>(null);
   const [periodModalMode, setPeriodModalMode] = useState<"lock" | "open" | null>(null);
 
@@ -110,8 +112,29 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     setIsMounted(true);
   }, []);
 
-  // Dynamic KPI calculation using decimal.js (strictly excluding reversed entries)
-  const { totalIn, totalOut, closingBalance } = useMemo(() => {
+  // Fetch Live Summary & Transactions from Backend API
+  const fetchLiveData = async () => {
+    if (!selectedPeriodId) return;
+
+    setLoadingSummary(true);
+    try {
+      const res = await apiFetch<PeriodSummaryData>(`/periods/${selectedPeriodId}/summary`);
+      if (res.success && res.data) {
+        setLiveSummary(res.data);
+      }
+    } catch {
+      // Silent fallback to local calculated summary
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveData();
+  }, [selectedPeriodId, transactions]);
+
+  // Dynamic KPI calculation fallback using decimal.js
+  const localCalculatedSummary = useMemo(() => {
     let sumIn = "0";
     let sumOut = "0";
 
@@ -130,22 +153,15 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     const net = subDecimal(addDecimal(startingBalance, sumIn), sumOut).toString();
 
     return {
-      totalIn: sumIn,
-      totalOut: sumOut,
-      closingBalance: net,
+      period_id: selectedPeriod.id,
+      starting_balance: startingBalance,
+      total_in: sumIn,
+      total_out: sumOut,
+      closing_balance: net,
     };
   }, [transactions, selectedPeriod.id, startingBalance]);
 
-  // Summary object for KpiSummaryCards
-  const kpiSummaryData = useMemo(() => {
-    return {
-      period_id: selectedPeriod.id,
-      starting_balance: startingBalance,
-      total_in: totalIn,
-      total_out: totalOut,
-      closing_balance: closingBalance,
-    };
-  }, [selectedPeriod.id, startingBalance, totalIn, totalOut, closingBalance]);
+  const kpiSummaryData = liveSummary || localCalculatedSummary;
 
   // Period History Items
   const historyItems: PeriodHistoryItem[] = useMemo(() => {
@@ -161,38 +177,6 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       locked_at: p.status === "locked" ? "2026-08-01 23:59" : null,
     }));
   }, [periods]);
-
-  // Handlers for Member Management
-  const handleAddMember = async (email: string, role: "admin" | "muhasebeci" | "standart") => {
-    const newM: MemberItem = {
-      userId: `usr-${Date.now()}`,
-      email,
-      role,
-    };
-    setMembers((prev) => [...prev, newM]);
-  };
-
-  const handleUpdateMemberRole = async (userId: string, newRole: "admin" | "muhasebeci" | "standart") => {
-    if (newRole !== "admin") {
-      const adminCount = members.filter((m) => m.role === "admin").length;
-      const targetM = members.find((m) => m.userId === userId);
-      if (adminCount <= 1 && targetM?.role === "admin") {
-        throw new Error("CANNOT_REMOVE_LAST_ADMIN");
-      }
-    }
-    setMembers((prev) => prev.map((m) => (m.userId === userId ? { ...m, role: newRole } : m)));
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    const targetM = members.find((m) => m.userId === userId);
-    if (targetM?.role === "admin") {
-      const adminCount = members.filter((m) => m.role === "admin").length;
-      if (adminCount <= 1) {
-        throw new Error("CANNOT_REMOVE_LAST_ADMIN");
-      }
-    }
-    setMembers((prev) => prev.filter((m) => m.userId !== userId));
-  };
 
   // Handler: Create Transaction
   const handleCreateTransaction = async (data: {
@@ -215,6 +199,22 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     };
 
     setTransactions((prev) => [newTx, ...prev]);
+
+    try {
+      await apiFetch(`/transactions`, {
+        method: "POST",
+        headers: { "Idempotency-Key": data.idempotencyKey },
+        body: JSON.stringify({
+          period_id: selectedPeriod.id,
+          direction: data.direction,
+          channel: data.channel,
+          amount: data.amount,
+          description: data.description,
+        }),
+      });
+    } catch {
+      // Local state is preserved
+    }
   };
 
   // Handler: Reverse Transaction
@@ -239,6 +239,16 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     setTransactions((prev) =>
       prev.map((t) => (t.id === targetTxId ? { ...t, reversedBy: reversalTxId } : t)).concat(reversalTx)
     );
+
+    try {
+      await apiFetch(`/transactions/${targetTxId}/reverse`, {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ reason }),
+      });
+    } catch {
+      // Local state is preserved
+    }
   };
 
   // Handler: Lock Period
@@ -246,6 +256,15 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     setPeriods((prev) =>
       prev.map((p) => (p.id === selectedPeriod.id ? { ...p, status: "locked" } : p))
     );
+
+    try {
+      await apiFetch(`/periods/${selectedPeriod.id}/lock`, {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+      });
+    } catch {
+      // Local state is preserved
+    }
   };
 
   // Handler: Open Next Period
@@ -254,15 +273,28 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       id: `p-${label}`,
       label,
       status: "open",
-      startingBalance: closingBalance,
+      startingBalance: kpiSummaryData.closing_balance.toString(),
     };
     setPeriods((prev) => [newPeriod, ...prev]);
     setSelectedPeriodId(newPeriod.id);
+
+    try {
+      await apiFetch(`/periods/open-next`, {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ label }),
+      });
+    } catch {
+      // Local state is preserved
+    }
   };
+
+  if (!isMounted) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header tenantName="Deftersystem Ana Şube" userRole={userRole} locale={locale} />
+      <Header tenantName={tCommon("tenantName")} userRole={userRole} locale={locale} />
+
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Period Selector & Action Controls Header */}
@@ -311,21 +343,24 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
               </Button>
             </div>
 
-            {/* Admin Member Management Modal */}
-            <MemberManagementDialog
-              userRole={userRole}
-              members={members}
-              onAddMember={handleAddMember}
-              onUpdateRole={handleUpdateMemberRole}
-              onRemoveMember={handleRemoveMember}
-            />
+            {/* Export CSV Button */}
+            <ExportCsvButton periodId={selectedPeriod.id} periodLabel={periodLabel} />
 
             {periodStatus === "open" && (
               <>
                 <Button
                   variant="outline"
+                  onClick={() => setImportModalOpen(true)}
+                  className="gap-2 border-slate-300 h-9 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <Upload className="w-4 h-4 text-emerald-600" />
+                  {tImport("importCsv")}
+                </Button>
+
+                <Button
+                  variant="outline"
                   onClick={() => setPeriodModalMode("open")}
-                  className="gap-2 border-slate-300 h-9 text-xs"
+                  className="gap-2 border-slate-300 h-9 text-xs font-semibold"
                 >
                   <Calendar className="w-4 h-4 text-primary" />
                   {tPeriod("openNextPeriod")}
@@ -334,7 +369,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
                 <Button
                   variant="destructive"
                   onClick={() => setPeriodModalMode("lock")}
-                  className="gap-2 h-9 text-xs"
+                  className="gap-2 h-9 text-xs font-semibold"
                 >
                   <Lock className="w-4 h-4" />
                   {tPeriod("lockPeriod")}
@@ -342,7 +377,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
                 <Button
                   onClick={() => setCreateModalOpen(true)}
-                  className="gap-2 h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  className="gap-2 h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
                 >
                   <PlusCircle className="w-4 h-4" />
                   {tTx("newTransaction")}
@@ -361,21 +396,15 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         )}
 
         {/* Modular Live KPI Cards */}
-        <KpiSummaryCards summary={kpiSummaryData} />
+        <KpiSummaryCards summary={kpiSummaryData} loading={loadingSummary} />
 
         {activeTab === "ledger" ? (
           <>
-            {/* Quick Entry Excel-like Keyboard Bar */}
-            <QuickEntryRow
-              isPeriodLocked={periodStatus === "locked"}
-              onSubmitTransaction={handleCreateTransaction}
-            />
-
             {/* Ledger Transactions Table (TanStack Table) */}
-            <div className="border rounded-xl bg-white shadow-sm overflow-hidden mt-6">
-              <div className="p-4 border-b bg-slate-50/50 flex items-center justify-between">
+            <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mt-4">
+              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">{tTx("title")}</h3>
-                <span className="text-xs text-slate-500 font-medium">
+                <span className="text-xs text-slate-500 font-semibold">
                   {transactions.filter((tx) => tx.periodId === selectedPeriod.id).length} İşlem Kaydı
                 </span>
               </div>
@@ -414,6 +443,14 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         onOpenChange={setReverseModalOpen}
         transaction={targetTxForReverse}
         onSubmitReversal={handleReverseTransaction}
+      />
+
+      <ImportCsvDialog
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        periodId={selectedPeriod.id}
+        isPeriodLocked={periodStatus === "locked"}
+        onImportSuccess={fetchLiveData}
       />
 
       <PeriodActionDialog

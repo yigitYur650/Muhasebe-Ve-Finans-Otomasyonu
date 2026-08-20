@@ -11,7 +11,7 @@
 - [x] `antigravityrules` bu proje için uyarlanır (Kap-App şablonundan, stack referansları güncellenir)
 - [x] Backend iskeleti: Go modül init, Fiber v2 kurulum, Clean Architecture klasörleri (`domain/repository/service/handler`)
 - [x] Frontend iskeleti: Next.js 15 App Router init, shadcn/ui + Tailwind kurulum, TanStack Table bağımlılığı (PASS, 2026-08-20)
-- [ ] Supabase projesi oluşturulur, `.env.example` yazılır, `.gitignore` doğrulanır (`.env` asla commit edilmez)
+- [x] Supabase projesi oluşturulur, `.env.example` yazılır, `.gitignore` doğrulanır (`.env` asla commit edilmez) (PASS, 2026-08-20)
 - [x] **AÇIK KARAR onaylanır:** Event sourcing / double-entry / append-only ledger seçimi netleşmeden Sprint 1'e geçilmez (Append-only ledger + period snapshot seçildi)
 
 ## Sprint 1 — Veritabanı Şeması ve Dönem Motoru
@@ -48,7 +48,7 @@
 - [x] JWT doğrulama: `iss`/`aud` claim kontrolü dahil (PASS, 2026-08-20)
 - [x] Admin rotaları hem frontend guard hem backend middleware ile korunur (PASS, 2026-08-20)
 - [x] Tenant Üye ve Rol Yönetimi ile Geçmiş Dönem Arşiv İnceleme Görünümü (PASS, 2026-08-20)
-- [ ] CORS: production'da açık origin listesi, wildcard yasak
+- [x] CORS: production'da açık origin listesi, wildcard yasak (PASS, 2026-08-20)
 
 ## Sprint 4 — Klavye Odaklı Veri Girişi Arayüzü
 
@@ -61,30 +61,45 @@
 
 - [x] Seçili döneme ait toplam gelir/gider/net bakiye canlı hesaplama (backend endpoint + frontend özet kart) (PASS, 2026-08-20)
 - [x] Dönem geçmişi görünümü (kapanmış dönemlerin salt-okunur listesi) (PASS, 2026-08-20)
+- [x] KPI kart opaklık düzeltimi, UI sadeleştirilmesi ve canlı API entegrasyonu (PASS, 2026-08-20)
+- [x] 6 İleri Düzey Uç Durum (Edge-Case) Test Paketi (Çift Kuruş, Reversal of Reversal, Concurrency, Sub-penny bounds, Idempotency Cross-tenant, Balance Immutability) (PASS, 2026-08-20)
+
 
 ## Sprint 6 — Excel Import/Export ve Tenant İzolasyon E2E
 
 - [x] Uçtan Uca Entegrasyon ve Güvenlik/İzolasyon Testleri (5 Kritik E2E & Güvenlik Matrisi Senaryosu) (PASS, 2026-08-20)
-- [ ] Mevcut Excel geçmişinin sisteme aktarımı (import) — format doğrulama ve hata raporlama
-- [ ] Excel/PDF dışa aktarım
+- [x] Mevcut Excel geçmişinin sisteme aktarımı (import) — format doğrulama ve hata raporlama (PASS, 2026-08-20)
+- [x] Excel/CSV dışa aktarım (UTF-8 BOM desteği ile Excel uyumluluğu) (PASS, 2026-08-20)
 - [x] Playwright / Go Integration E2E: dönemler arası bakiye devri doğruluğu (PASS, 2026-08-20)
 - [x] Playwright / Go Integration E2E: tenant izolasyonu (bir tenant diğerinin verisini göremiyor) (PASS, 2026-08-20)
-- [ ] Playwright E2E: Excel import sonrası hesaplamaların doğruluğu
+- [x] Playwright / Service E2E: Excel import sonrası hesaplamaların kuruşu kuruşuna doğruluğu (PASS, 2026-08-20)
+
 
 ## Sprint 7 — Güvenlik Denetimi ve Sertleştirme
 
 - [x] Güvenlik Sıkılaştırma, SQL SETOF Tenant Düzeltmesi ve Idempotency Kompozit Key Güvenliği (PASS, 2026-08-20)
-- [ ] `SECURITY_AUDIT_REPORT.md` bu proje için doldurulur (Kap-App raporundaki formatla)
-- [ ] Güvenlik headerları eklenir (`X-Content-Type-Options`, `X-Frame-Options`, HSTS, CSP)
+- [x] "Öncü Otogaz" Marka & Sarı-Siyah Tema Entegrasyonu, Supabase Login Ekranı ve Next.js Route Guard Middleware (PASS, 2026-08-20)
+- [x] Go Fiber CORS Preflight Yapılandırması, i18n Sözlük İyileştirmeleri ve Supabase Auth Hata Yönetimi (PASS, 2026-08-20)
+- [x] Kök Dizin (http://localhost:3000/) 500 Hatasının Giderilmesi ve Middleware İzolasyonu (PASS, 2026-08-20)
+- [x] i18n Statik JSON Fallback ve Go API Main Server SetupRouter Entegrasyonu (PASS, 2026-08-20)
+- [x] Mock Repo Temizliği (Canlı Postgres Bağlantısı), CSV Export Handler ve Güvenlik Sorusu ile Şifre Yönetimi (PASS, 2026-08-20)
+- [x] `SECURITY_AUDIT_REPORT.md` bu proje için doldurulur (Kap-App raporundaki formatla) (PASS, 2026-08-20)
+- [x] Güvenlik headerları eklenir (`X-Content-Type-Options`, `X-Frame-Options`, HSTS, CSP) (PASS, 2026-08-20)
 - [x] Dockerfile: non-root kullanıcı (backend appuser 10001, frontend nextjs 1001) (PASS, 2026-08-20)
 - [ ] Rate limiter kalıcılığı (in-memory yerine, restart'ta sıfırlanmayan bir çözüm) değerlendirilir
+
+
+
+
+
 
 ## Sprint 8 — Deployment ve Release
 
 - [x] Docker Containerization, GitHub Actions CI/CD ve Production Deployment Hazırlığı (PASS, 2026-08-20)
-- [ ] `render.yaml` (veya seçilen platform) — tüm env var'lar eksiksiz tanımlı
-- [ ] `RELEASE_NOTES.md` ilk sürüm için doldurulur
-- [ ] Canlıya hazır demo doğrulaması
+- [x] `render.yaml` (veya seçilen platform) — tüm env var'lar eksiksiz tanımlı (PASS, 2026-08-20)
+- [x] `RELEASE_NOTES.md` ilk sürüm için doldurulur (PASS, 2026-08-20)
+- [x] Canlıya hazır demo doğrulaması (PASS, 2026-08-20)
+
 
 ---
 

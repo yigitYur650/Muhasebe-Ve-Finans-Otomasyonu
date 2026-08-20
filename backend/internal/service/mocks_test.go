@@ -138,3 +138,21 @@ func (m *MockTransactionRepo) MarkReversed(ctx context.Context, targetID, revers
 	args := m.Called(ctx, targetID, reversalID)
 	return args.Error(0)
 }
+
+type MockIdempotencyRepo struct {
+	mock.Mock
+}
+
+func (m *MockIdempotencyRepo) Get(ctx context.Context, key string, tenantID uuid.UUID) (*domain.IdempotencyKey, error) {
+	args := m.Called(ctx, key, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.IdempotencyKey), args.Error(1)
+}
+
+func (m *MockIdempotencyRepo) Save(ctx context.Context, key *domain.IdempotencyKey) error {
+	args := m.Called(ctx, key)
+	return args.Error(0)
+}
+

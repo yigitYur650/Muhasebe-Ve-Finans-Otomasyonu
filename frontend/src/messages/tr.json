@@ -1,7 +1,9 @@
 {
   "common": {
-    "appName": "Kasa ve Defter-i Kebir Platformu",
+    "appName": "Öncü Otogaz — Kasa ve Defter-i Kebir",
+    "tenantName": "Öncü Otogaz Ana Şube",
     "open": "Açık",
+
     "locked": "Kilitli",
     "status": "Durum",
     "actions": "İşlemler",
@@ -99,15 +101,30 @@
     "roleAdmin": "Yönetici",
     "roleMuhasebeci": "Muhasebeci",
     "roleStandart": "Standart Kullanıcı",
-    "loginTitle": "Giriş Yap",
-    "loginDescription": "Kasa ve Defter-i Kebir Platformuna erişmek için e-posta ve şifrenizi girin.",
+    "loginTitle": "Öncü Otogaz Kasa Yönetim Portalı",
+    "loginDescription": "Öncü Otogaz Kasa ve Defter-i Kebir Platformuna erişmek için kullanıcı bilgilerinizi girin.",
     "email": "E-Posta Adresi",
     "password": "Şifre",
     "loginAction": "Giriş Yap",
     "loginSuccess": "Giriş başarılı! Yönlendiriliyorsunuz...",
-    "invalidCredentials": "E-posta veya şifre hatalı.",
-    "logoutAction": "Çıkış Yap"
+    "logoutAction": "Çıkış Yap",
+    "forgotPassword": "Şifremi Unuttum",
+    "forgotPasswordTitle": "Güvenlik Sorusu ile Şifre Sıfırlama",
+    "forgotPasswordDesc": "Kayıtlı e-posta adresinizi girerek tanımlı güvenlik sorunuzu yanıtlayın.",
+    "securityQuestion": "Güvenlik Sorusu",
+    "securityAnswer": "Güvenlik Cevabı",
+    "newPassword": "Yeni Şifre",
+    "confirmNewPassword": "Yeni Şifre (Tekrar)",
+    "resetAction": "Şifreyi Güncelle",
+    "resetSuccess": "Şifreniz başarıyla sıfırlandı! Giriş yapabilirsiniz.",
+    "changePassword": "Şifre Değiştir",
+    "changePasswordTitle": "Güvenlik Sorusu ve Şifre Güncelleme",
+    "saveSecurity": "Güvenlik Ayarlarını Kaydet",
+    "securitySaved": "Güvenlik sorusu ve şifreniz güncellendi.",
+    "passwordMismatch": "Şifreler birbiriyle eşleşmiyor."
   },
+
+
   "errors": {
     "PERIOD_LOCKED": "Bu dönem kilitli olduğu için işlem yapılamaz.",
     "INVALID_AMOUNT": "İşlem tutarı sıfırdan büyük olmalıdır.",
@@ -141,5 +158,28 @@
     "no_history": "Henüz arşivlenmiş dönem bulunmuyor.",
     "status_locked": "Kilitli (Salt-Okunur)",
     "status_open": "Aktif Dönem"
+  },
+  "import_export": {
+    "exportCsv": "CSV Dışa Aktar",
+    "export_csv": "CSV Dışa Aktar",
+    "importCsv": "Toplu CSV İçe Aktar",
+    "import_csv": "CSV İçe Aktar",
+    "importTitle": "Toplu İşlem CSV İçe Aktarımı",
+    "importDescription": "Excel veya muhasebe yazılımlarından dışa aktardığınız CSV dosyasını döneme toplu olarak yükleyin.",
+    "dragDropHint": "CSV dosyasını buraya sürükleyip bırakın veya bilgisayarınızdan seçin",
+    "selectFile": "CSV Dosyası Seç",
+    "upload_file": "Dosya Seç veya Sürükle",
+    "downloadTemplate": "Örnek CSV Şablonunu İndir",
+    "download_template": "Örnek Şablonu İndir",
+    "uploading": "Aktarılıyor...",
+    "startImport": "Aktarımı Başlat",
+    "successTitle": "Toplu Aktarım Başarılı",
+    "successSummary": "{count} adet işlem kaydı toplam {amount} TL tutarında döneme aktarıldı.",
+    "success": "Veriler başarıyla aktarıldı",
+    "importError": "Aktarım sırasında hata oluştu",
+    "error": "Aktarım sırasında hata oluştu",
+    "invalid_format": "Geçersiz dosya formatı"
   }
 }
+
+

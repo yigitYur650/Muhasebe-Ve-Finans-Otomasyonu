@@ -55,3 +55,6 @@ export function PeriodSelector({ periods, selectedPeriodId, onSelectPeriod }: Pe
     </Select>
   );
 }
+
+export default PeriodSelector;
+

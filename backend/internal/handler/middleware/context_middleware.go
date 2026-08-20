@@ -41,3 +41,24 @@ func ContextMiddleware() fiber.Handler {
 		return c.Next()
 	}
 }
+
+// GetTenantID retrieves the parsed tenant UUID from context locals.
+func GetTenantID(c *fiber.Ctx) uuid.UUID {
+	if val := c.Locals(LocalTenantIDKey); val != nil {
+		if id, ok := val.(uuid.UUID); ok {
+			return id
+		}
+	}
+	return uuid.Nil
+}
+
+// GetUserID retrieves the parsed user UUID from context locals.
+func GetUserID(c *fiber.Ctx) uuid.UUID {
+	if val := c.Locals(LocalUserIDKey); val != nil {
+		if id, ok := val.(uuid.UUID); ok {
+			return id
+		}
+	}
+	return uuid.Nil
+}
+

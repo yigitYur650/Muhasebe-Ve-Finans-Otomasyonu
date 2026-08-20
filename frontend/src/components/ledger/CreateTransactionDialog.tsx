@@ -209,3 +209,6 @@ export function CreateTransactionDialog({
     </Dialog>
   );
 }
+
+export default CreateTransactionDialog;
+

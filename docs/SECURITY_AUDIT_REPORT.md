@@ -31,16 +31,24 @@ Bu liste, Sprint 0/1'de tasarıma gömülen kontroller — Sprint 7'de her biri 
 - [x] `.env` git geçmişinde hiç yok — ilk commit öncesi `.gitignore` doğrulandı mı? (Doğrulandı: `.gitignore`)
 - [x] Service-role / JWT secret / API key'ler sadece backend env'inde, frontend'e hiç geçmiyor mu? (Doğrulandı: `backend/cmd/api` & `frontend/src/lib/api.ts`)
 - [x] Console/log çıktısında hiçbir secret veya secret prefix'i yok mu? (Doğrulandı: `middleware/context_middleware.go`)
-- [ ] CORS production'da açık origin listesiyle mi (wildcard değil)?
+- [x] CORS production'da açık origin listesiyle mi (wildcard değil)? (Doğrulandı: `router.go` `AllowOriginsFunc` & `AllowCredentials`)
 - [x] Hiçbir kullanıcı/hesap için hardcoded auth istisnası var mı? (Doğrulandı: Tüm handler ve servisler 0 istisna ile çalışıyor)
 - [x] Tüm RLS politikaları `tenant_id` bazlı mı, `USING(true)` gibi genel geçirgen politika var mı? (Doğrulandı: `08_rls_periods_and_transactions.sql` & `integration_test.go`)
 - [x] Hata yanıtları generic mi (iç detay/stack trace istemciye dönmüyor mu)? (Doğrulandı: `handler/errors.go` & `TestCreateTransaction_NegativeAmountReturns400`)
 - [x] JWT doğrulamada `iss`/`aud` claim kontrolü var mı? (Doğrulandı: `auth_middleware.go` & `auth_middleware_test.go`)
 - [x] Kilitli (locked) döneme yazma denemesi hem RLS hem service layer'da engelleniyor mu (defense in depth)? (Doğrulandı: `TestLockedPeriodAndAppendOnlyProtection_HTTP422` & `07_period_lock_and_append_only_triggers.sql`)
-- [x] Admin rotaları hem frontend guard hem backend middleware ile korunuyor mu? (Doğrulandı: `TestMultiTenantAndRoleIsolation_HTTP403` & `PeriodActionDialog.tsx`)
-- [ ] Güvenlik headerları eklendi mi (`X-Content-Type-Options`, `X-Frame-Options`, HSTS, CSP)?
+- [x] Admin rotaları ve ana defter sayfası hem frontend Route Guard (`middleware.ts`) hem backend middleware ile korunuyor mu? (Doğrulandı: `frontend/src/middleware.ts`, `TestMultiTenantAndRoleIsolation_HTTP403` & `PeriodActionDialog.tsx`)
+- [x] Güvenlik headerları eklendi mi (`X-Content-Type-Options`, `X-Frame-Options`, HSTS, CSP)? (Doğrulandı: `frontend/next.config.mjs` & `backend/internal/handler/router.go`)
 - [x] Dockerfile non-root kullanıcı ile mi çalışıyor? (Doğrulandı: `backend/Dockerfile` appuser UID 10001 & `frontend/Dockerfile` nextjs UID 1001)
 - [x] Idempotency-Key mekanizması race condition'a karşı test edildi mi? (Doğrulandı: `TestIdempotencySecurity_DuplicateInterception`)
+- [x] Cross-tenant idempotency izolasyonu ve cache collision koruması sağlandı mı? (Doğrulandı: `TestEdgeCase_CrossTenantIdempotencyIsolation`)
+- [x] Reversal of a reversal (ters kaydın tekrar iptali) yasağı korundu mu? (Doğrulandı: `TestEdgeCase_ReversalOfReversalBlocked`)
+- [x] Eşzamanlı 10+ goroutine işleminde race condition ve sayaç bütünlüğü doğrulandı mı? (Doğrulandı: `TestEdgeCase_ConcurrentTransactionRaceCondition`)
+- [x] Kilitli dönemin bakiye ve mutasyon immutability (değişmezlik) garantisi sağlandı mı? (Doğrulandı: `TestEdgeCase_LockedPeriodBalanceImmutability`)
+- [x] Ondalık kuruş hassasiyeti (double-penny & büyük sayı 10^13) float taşmasız doğrulandı mı? (Doğrulandı: `TestEdgeCase_DoublePennyAndLargeNumberPrecision`)
+
+
+
 
 ---
 
