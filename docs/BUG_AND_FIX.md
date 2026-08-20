@@ -45,3 +45,16 @@
 - **Yan Etki & Risk Analizi (Risk):** Düşük. Kompozit anahtar tenant izolasyonunu %100 garanti eder.
 - **Doğrulama & Test Sonucu (Verification):** `go test -v ./...` çalıştırıldı. `TestIdempotency_CompositeKeyTenantIsolation` ve `TestAuthMiddleware_NonMemberTenantAccess` dahil 32/32 backend unit ve entegrasyon testi `PASS` verdi. `npm run build` 7/7 SSG sayfa ile sıfır hata ile tamamlandı.
 - **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-04] Next.js Lucide-React Vendor Chunk Resolution Fix
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5 & Webpack Fix
+- **Etkilenen Katman / Dosya:** `frontend/next.config.mjs`, `frontend/.next`
+- **Belirti (Symptom):** Geliştirme/derleme sırasında `lucide-react` simgelerinin dynamic tree-shaking sebebiyle Webpack vendor chunk çözümlenmesinde önbellek bozulması (corrupt build cache) veya modül bulunamadı uyarısı üretmesi.
+- **Kök Neden (Root Cause):** Next.js 15 App Router mimarisinde ESM tabanlı simge paketlerinin `transpilePackages` bildirimi olmaksızın sunucu tarafında işlenirken tree-shaking önbelleği ile çakışması.
+- **Uygulanan Düzeltme (Fix):** `frontend/next.config.mjs` içerisine `transpilePackages: ['lucide-react']` yapılandırması eklendi ve `frontend/.next` derleme önbelleği tamamen temizlendi (`npx rimraf .next`).
+- **Yan Etki & Risk Analizi (Risk):** Yok. Derleyici paketi doğrudan transpile ederek eksiksiz derleme garantisi sağlar.
+- **Doğrulama & Test Sonucu (Verification):** `npx rimraf .next` sonrasında `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır uyarı ile derlendi (Exit code: 0).
+- **Durum:** `RESOLVED`
