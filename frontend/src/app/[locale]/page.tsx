@@ -43,11 +43,9 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
   // View Mode: 'ledger' (Active Table) vs 'history' (Archived Periods)
   const [activeTab, setActiveTab] = useState<"ledger" | "history">("ledger");
 
-  // Periods State
+  // Periods State (Default current period, fetched from live database)
   const [periods, setPeriods] = useState<PeriodOption[]>([
-    { id: "p-2026-08", label: "2026-08", status: "open", startingBalance: "15000.50" },
-    { id: "p-2026-07", label: "2026-07", status: "locked", startingBalance: "10000.00" },
-    { id: "p-2026-06", label: "2026-06", status: "locked", startingBalance: "8500.00" },
+    { id: "p-2026-08", label: "2026-08", status: "open", startingBalance: "0.00" },
   ]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("p-2026-08");
 
@@ -56,46 +54,13 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     [periods, selectedPeriodId]
   );
 
-  const periodStatus = selectedPeriod.status;
-  const periodLabel = selectedPeriod.label;
-  const startingBalance = selectedPeriod.startingBalance;
+  const periodStatus = selectedPeriod?.status || "open";
+  const periodLabel = selectedPeriod?.label || "2026-08";
+  const startingBalance = selectedPeriod?.startingBalance || "0.00";
 
-  // Transactions State
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    {
-      id: "tx-101",
-      periodId: "p-2026-08",
-      direction: "in",
-      channel: "eft",
-      amount: "5450.75",
-      description: "Müşteri Ahmet Yılmaz Ödeme",
-      createdAt: "2026-08-20 10:15",
-      createdBy: "Halil İbrahim",
-      reversedBy: null,
-    },
-    {
-      id: "tx-102",
-      periodId: "p-2026-08",
-      direction: "out",
-      channel: "kira",
-      amount: "3200.25",
-      description: "Ağustos Ayı Ofis Kirası",
-      createdAt: "2026-08-20 11:30",
-      createdBy: "Ahmet Muhasebe",
-      reversedBy: null,
-    },
-    {
-      id: "tx-103",
-      periodId: "p-2026-08",
-      direction: "in",
-      channel: "pos",
-      amount: "3000.00",
-      description: "Gün Sonu POS Çekimi",
-      createdAt: "2026-08-20 17:00",
-      createdBy: "Halil İbrahim",
-      reversedBy: null,
-    },
-  ]);
+  // Transactions State (Empty array default, populated from live database)
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+
 
   // Live Summary from Backend (with fallback)
   const [liveSummary, setLiveSummary] = useState<PeriodSummaryData | null>(null);
