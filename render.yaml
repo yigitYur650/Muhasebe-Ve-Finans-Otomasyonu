@@ -2,9 +2,8 @@ services:
   # Go Fiber Backend API Service
   - type: web
     name: deftersystem-backend
-    env: go
-    buildCommand: cd backend && CGO_ENABLED=0 go build -o main ./cmd/api
-    startCommand: cd backend && ./main
+    env: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
         value: 8080
