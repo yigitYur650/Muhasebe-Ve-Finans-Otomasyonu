@@ -174,6 +174,8 @@
 | `components/shared` | `PeriodBadge.tsx` | Dönemin kilitli (`locked`) veya açık (`open`) olma durumunu görsel olarak sunan durum rozeti. |
 | `components/ledger` | `PeriodSelector.tsx` | Tüm açık ve kilitli geçmiş dönemleri listeleyen ve salt-okunur arşiv modunu tetikleyen Select bileşeni. |
 | `components/ledger` | `QuickEntryRow.tsx` | Excel stili klavye odaklı hızlı satır girişi barı (`Enter`, `Tab`, `G/C`, `Esc`, inline decimal validasyonu). |
+| `components/ledger` | `KpiSummaryCards.tsx` | 4 Metrik Kartlı canlı finansal bakiye özeti (Açılış, Gelir, Gider, Net Kasa, `formatTL` kuruş hassasiyeti). |
+| `components/ledger` | `PeriodHistoryView.tsx` | Kapanmış ve kilitlenmiş geçmiş dönemlerin karşılaştırmalı salt-okunur arşiv tablosu ("Defteri İncele" butonu ile). |
 | `components/ledger` | `TransactionTable.tsx` | TanStack Table (`@tanstack/react-table`) defter tablosu, filtreleme araç çubuğu ve ters kayıt görsel stilleri. |
 | `components/ledger` | `CreateTransactionDialog.tsx` | Hızlı satır girişi modalı, `crypto.randomUUID()` ile frontend idempotency key üretimi. |
 | `components/ledger` | `ReverseTransactionDialog.tsx` | Ters kayıt (iptal) modalı, yasal denetim uyarısı ve gerekçe (`reason`) zorunluluğu. |

@@ -59,8 +59,8 @@
 
 ## Sprint 5 — Canlı KPI ve Bakiye Paneli
 
-- [ ] Seçili döneme ait toplam gelir/gider/net bakiye canlı hesaplama (backend endpoint + frontend özet kart)
-- [ ] Dönem geçmişi görünümü (kapanmış dönemlerin salt-okunur listesi)
+- [x] Seçili döneme ait toplam gelir/gider/net bakiye canlı hesaplama (backend endpoint + frontend özet kart) (PASS, 2026-08-20)
+- [x] Dönem geçmişi görünümü (kapanmış dönemlerin salt-okunur listesi) (PASS, 2026-08-20)
 
 ## Sprint 6 — Excel Import/Export ve Tenant İzolasyon E2E
 

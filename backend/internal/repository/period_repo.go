@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 
 	"deftersystem/backend/internal/domain"
 )
@@ -82,4 +83,45 @@ func (r *PostgresPeriodRepository) Lock(ctx context.Context, id uuid.UUID) error
 		return domain.ErrPeriodNotFound
 	}
 	return nil
+}
+
+func (r *PostgresPeriodRepository) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
+	query := `
+		SELECT 
+			p.id AS period_id,
+			p.label,
+			p.status,
+			p.starting_balance,
+			COALESCE(SUM(CASE WHEN t.direction = 'in' THEN t.amount ELSE 0 END), 0) AS total_in,
+			COALESCE(SUM(CASE WHEN t.direction = 'out' THEN t.amount ELSE 0 END), 0) AS total_out,
+			p.opened_at,
+			p.locked_at
+		FROM public.periods p
+		LEFT JOIN public.transactions t ON p.id = t.period_id AND t.reversed_by IS NULL
+		WHERE p.tenant_id = $1
+		GROUP BY p.id, p.label, p.status, p.starting_balance, p.opened_at, p.locked_at
+		ORDER BY p.opened_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query, tenantID)
+	if err != nil {
+		return nil, MapSQLError(err)
+	}
+	defer rows.Close()
+
+	var history []domain.PeriodHistoryItem
+	for rows.Next() {
+		var item domain.PeriodHistoryItem
+		var totalIn, totalOut decimal.Decimal
+		if err := rows.Scan(
+			&item.PeriodID, &item.Label, &item.Status, &item.StartingBalance,
+			&totalIn, &totalOut, &item.OpenedAt, &item.LockedAt,
+		); err != nil {
+			return nil, MapSQLError(err)
+		}
+		item.TotalIn = totalIn
+		item.TotalOut = totalOut
+		item.ClosingBalance = item.StartingBalance.Add(totalIn).Sub(totalOut)
+		history = append(history, item)
+	}
+	return history, nil
 }

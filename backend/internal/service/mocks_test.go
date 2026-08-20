@@ -88,6 +88,14 @@ func (m *MockPeriodRepo) Lock(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockPeriodRepo) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
+	args := m.Called(ctx, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.PeriodHistoryItem), args.Error(1)
+}
+
 type MockTransactionRepo struct {
 	mock.Mock
 }

@@ -77,6 +77,14 @@ func (m *MockPeriodService) ListPeriods(ctx context.Context, tenantID uuid.UUID)
 	return args.Get(0).([]domain.Period), args.Error(1)
 }
 
+func (m *MockPeriodService) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
+	args := m.Called(ctx, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.PeriodHistoryItem), args.Error(1)
+}
+
 type MockTransactionService struct {
 	mock.Mock
 }

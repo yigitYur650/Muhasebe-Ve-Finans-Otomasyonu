@@ -37,6 +37,7 @@ func SetupRouter(
 	// Period routes
 	periodsGroup := api.Group("/periods")
 	periodsGroup.Get("/", periodH.ListPeriods)
+	periodsGroup.Get("/history", periodH.GetPeriodHistory)
 	periodsGroup.Post("/open", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
 	periodsGroup.Post("/:id/lock", middleware.IdempotencyMiddleware(idemRepo), periodH.LockPeriod)
 	periodsGroup.Get("/:id/summary", periodH.GetPeriodSummary)

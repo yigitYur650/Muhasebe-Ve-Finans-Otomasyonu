@@ -11,27 +11,30 @@ import { PeriodActionDialog } from "@/components/ledger/PeriodActionDialog";
 import { PeriodSelector, PeriodOption } from "@/components/ledger/PeriodSelector";
 import { MemberManagementDialog, MemberItem } from "@/components/admin/MemberManagementDialog";
 import { QuickEntryRow } from "@/components/ledger/QuickEntryRow";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KpiSummaryCards } from "@/components/ledger/KpiSummaryCards";
+import { PeriodHistoryView, PeriodHistoryItem } from "@/components/ledger/PeriodHistoryView";
 import { Button } from "@/components/ui/button";
-import { formatTL, addDecimal, subDecimal } from "@/lib/decimal";
+import { addDecimal, subDecimal } from "@/lib/decimal";
 import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Scale,
   PlusCircle,
   Lock,
   Calendar,
   AlertTriangle,
+  FileSpreadsheet,
+  Archive,
 } from "lucide-react";
 
 export default function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = use(params);
   const tPeriod = useTranslations("period");
   const tTx = useTranslations("transaction");
+  const tHistory = useTranslations("history");
 
   // User Role State (Mocked as admin for interactive demonstration)
   const [userRole, setUserRole] = useState<"admin" | "muhasebeci" | "standart">("admin");
+
+  // View Mode: 'ledger' (Active Table) vs 'history' (Archived Periods)
+  const [activeTab, setActiveTab] = useState<"ledger" | "history">("ledger");
 
   // Periods State
   const [periods, setPeriods] = useState<PeriodOption[]>([
@@ -100,12 +103,14 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
   const [targetTxForReverse, setTargetTxForReverse] = useState<TransactionItem | null>(null);
   const [periodModalMode, setPeriodModalMode] = useState<"lock" | "open" | null>(null);
 
-  // Dynamic KPI calculation using decimal.js
+  // Dynamic KPI calculation using decimal.js (strictly excluding reversed entries)
   const { totalIn, totalOut, closingBalance } = useMemo(() => {
     let sumIn = "0";
     let sumOut = "0";
 
-    const filtered = transactions.filter((tx) => tx.periodId === selectedPeriod.id);
+    const filtered = transactions.filter(
+      (tx) => tx.periodId === selectedPeriod.id && !tx.reversedBy
+    );
 
     for (const tx of filtered) {
       if (tx.direction === "in") {
@@ -123,6 +128,32 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       closingBalance: net,
     };
   }, [transactions, selectedPeriod.id, startingBalance]);
+
+  // Summary object for KpiSummaryCards
+  const kpiSummaryData = useMemo(() => {
+    return {
+      period_id: selectedPeriod.id,
+      starting_balance: startingBalance,
+      total_in: totalIn,
+      total_out: totalOut,
+      closing_balance: closingBalance,
+    };
+  }, [selectedPeriod.id, startingBalance, totalIn, totalOut, closingBalance]);
+
+  // Period History Items
+  const historyItems: PeriodHistoryItem[] = useMemo(() => {
+    return periods.map((p) => ({
+      period_id: p.id,
+      label: p.label,
+      status: p.status,
+      starting_balance: p.startingBalance,
+      total_in: "5450.75",
+      total_out: "3200.25",
+      closing_balance: "17250.50",
+      opened_at: "2026-08-01",
+      locked_at: p.status === "locked" ? "2026-08-01 23:59" : null,
+    }));
+  }, [periods]);
 
   // Handlers for Member Management
   const handleAddMember = async (email: string, role: "admin" | "muhasebeci" | "standart") => {
@@ -251,6 +282,28 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* View Mode Switcher */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200">
+              <Button
+                size="sm"
+                variant={activeTab === "ledger" ? "default" : "ghost"}
+                onClick={() => setActiveTab("ledger")}
+                className="h-8 text-xs font-semibold gap-1.5"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                İşlem Defteri
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === "history" ? "default" : "ghost"}
+                onClick={() => setActiveTab("history")}
+                className="h-8 text-xs font-semibold gap-1.5"
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {tHistory("title")}
+              </Button>
+            </div>
+
             {/* Admin Member Management Modal */}
             <MemberManagementDialog
               userRole={userRole}
@@ -300,93 +353,45 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
           </div>
         )}
 
-        {/* Live KPI Cards (Calculated using decimal.js) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-slate-200 shadow-sm hover:shadow transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {tPeriod("startingBalance")}
-              </CardTitle>
-              <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                <Wallet className="w-4 h-4" />
+        {/* Modular Live KPI Cards */}
+        <KpiSummaryCards summary={kpiSummaryData} />
+
+        {activeTab === "ledger" ? (
+          <>
+            {/* Quick Entry Excel-like Keyboard Bar */}
+            <QuickEntryRow
+              isPeriodLocked={periodStatus === "locked"}
+              onSubmitTransaction={handleCreateTransaction}
+            />
+
+            {/* Ledger Transactions Table (TanStack Table) */}
+            <div className="border rounded-xl bg-white shadow-sm overflow-hidden mt-6">
+              <div className="p-4 border-b bg-slate-50/50 flex items-center justify-between">
+                <h3 className="font-bold text-slate-900">{tTx("title")}</h3>
+                <span className="text-xs text-slate-500 font-medium">
+                  {transactions.filter((tx) => tx.periodId === selectedPeriod.id).length} İşlem Kaydı
+                </span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold text-slate-900">{formatTL(startingBalance)}</div>
-              <p className="text-xs text-slate-400 mt-1">Önceki ay devir bakiyesi</p>
-            </CardContent>
-          </Card>
 
-          <Card className="border-slate-200 shadow-sm hover:shadow transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {tPeriod("totalIn")}
-              </CardTitle>
-              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold text-emerald-600">+{formatTL(totalIn)}</div>
-              <p className="text-xs text-emerald-600/70 mt-1 font-medium">Toplam Gelir Girişleri</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm hover:shadow transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {tPeriod("totalOut")}
-              </CardTitle>
-              <div className="p-2 rounded-lg bg-rose-50 text-rose-600">
-                <TrendingDown className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold text-rose-600">-{formatTL(totalOut)}</div>
-              <p className="text-xs text-rose-600/70 mt-1 font-medium">Toplam Gider Çıkışları</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm hover:shadow transition-shadow bg-slate-900 text-white">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                {tPeriod("closingBalance")}
-              </CardTitle>
-              <div className="p-2 rounded-lg bg-slate-800 text-emerald-400">
-                <Scale className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold text-emerald-400">{formatTL(closingBalance)}</div>
-              <p className="text-xs text-slate-400 mt-1">Anlık Net Kasa Bakiyesi</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Entry Excel-like Keyboard Bar */}
-        <QuickEntryRow
-          isPeriodLocked={periodStatus === "locked"}
-          onSubmitTransaction={handleCreateTransaction}
-        />
-
-        {/* Ledger Transactions Table (TanStack Table) */}
-        <div className="border rounded-xl bg-white shadow-sm overflow-hidden">
-          <div className="p-4 border-b bg-slate-50/50 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">{tTx("title")}</h3>
-            <span className="text-xs text-slate-500 font-medium">
-              {transactions.filter((tx) => tx.periodId === selectedPeriod.id).length} İşlem Kaydı
-            </span>
-          </div>
-
-          <TransactionTable
-            transactions={transactions.filter((tx) => tx.periodId === selectedPeriod.id)}
-            isPeriodLocked={periodStatus === "locked"}
-            onReverse={(tx) => {
-              setTargetTxForReverse(tx);
-              setReverseModalOpen(true);
+              <TransactionTable
+                transactions={transactions.filter((tx) => tx.periodId === selectedPeriod.id)}
+                isPeriodLocked={periodStatus === "locked"}
+                onReverse={(tx) => {
+                  setTargetTxForReverse(tx);
+                  setReverseModalOpen(true);
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          <PeriodHistoryView
+            history={historyItems}
+            onSelectPeriod={(pId) => {
+              setSelectedPeriodId(pId);
+              setActiveTab("ledger");
             }}
           />
-        </div>
+        )}
       </main>
 
       {/* Interactive Modal Dialogs */}

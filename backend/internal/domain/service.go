@@ -22,6 +22,7 @@ type PeriodService interface {
 	LockPeriod(ctx context.Context, periodID uuid.UUID, requestingUserID uuid.UUID) error
 	GetPeriodSummary(ctx context.Context, periodID uuid.UUID) (*PeriodSummary, error)
 	ListPeriods(ctx context.Context, tenantID uuid.UUID) ([]Period, error)
+	GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]PeriodHistoryItem, error)
 }
 
 // TransactionService defines business logic operations for ledger transactions.

@@ -116,5 +116,30 @@
     "DUPLICATE_IDEMPOTENCY_KEY": "This request was already processed (Idempotency conflict).",
     "CANNOT_REMOVE_LAST_ADMIN": "Cannot remove the last administrator (admin) from the tenant.",
     "generic": "An error occurred. Please try again."
+  },
+  "kpi": {
+    "title": "Financial Status & Live Balance Cards",
+    "starting_balance": "Opening / Rollover Balance",
+    "total_in": "Total Income (+)",
+    "total_out": "Total Expense (-)",
+    "closing_balance": "Net Cash / Closing Balance",
+    "currency_symbol": "TL",
+    "period_summary_title": "Period Balance Sheet Summary"
+  },
+  "history": {
+    "title": "Archived Period History",
+    "description": "Read-only balance sheets of locked and historical financial periods.",
+    "label": "Period Label",
+    "status": "Status",
+    "starting_balance": "Opening Balance",
+    "total_in": "Total Income",
+    "total_out": "Total Expense",
+    "closing_balance": "Closing Balance",
+    "opened_at": "Opening Date",
+    "locked_at": "Lock Date",
+    "inspect_ledger": "Inspect Ledger",
+    "no_history": "No archived periods found yet.",
+    "status_locked": "Locked (Read-Only)",
+    "status_open": "Active Period"
   }
 }

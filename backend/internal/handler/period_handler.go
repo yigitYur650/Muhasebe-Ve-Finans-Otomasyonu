@@ -97,3 +97,20 @@ func (h *PeriodHandler) ListPeriods(c *fiber.Ctx) error {
 		Data:    periods,
 	})
 }
+
+func (h *PeriodHandler) GetPeriodHistory(c *fiber.Ctx) error {
+	tenantID, err := getTenantIDFromLocals(c)
+	if err != nil {
+		return domain.ErrUnauthorized
+	}
+
+	history, err := h.service.GetPeriodHistory(c.Context(), tenantID)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(ResponseEnvelope{
+		Success: true,
+		Data:    history,
+	})
+}

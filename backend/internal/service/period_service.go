@@ -76,3 +76,7 @@ func (s *DefaultPeriodService) ListPeriods(ctx context.Context, tenantID uuid.UU
 	}
 	return []domain.Period{}, nil
 }
+
+func (s *DefaultPeriodService) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
+	return s.periodRepo.GetPeriodHistory(ctx, tenantID)
+}

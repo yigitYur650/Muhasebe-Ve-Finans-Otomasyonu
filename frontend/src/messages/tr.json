@@ -116,5 +116,30 @@
     "DUPLICATE_IDEMPOTENCY_KEY": "Bu işlem daha önce gönderilmiş (Idempotency çakışması).",
     "CANNOT_REMOVE_LAST_ADMIN": "İşletmedeki son yönetici (admin) kullanıcı silinemez.",
     "generic": "Bir hata oluştu. Lütfen tekrar deneyiniz."
+  },
+  "kpi": {
+    "title": "Finansal Durum & Canlı Bilanço Kartları",
+    "starting_balance": "Açılış / Devir Bakiyesi",
+    "total_in": "Toplam Gelir (+)",
+    "total_out": "Toplam Gider (-)",
+    "closing_balance": "Net Kasa / Kapanış Bakiyesi",
+    "currency_symbol": "TL",
+    "period_summary_title": "Dönetsel Bilanço Özeti"
+  },
+  "history": {
+    "title": "Geçmiş Dönem Arşivi",
+    "description": "Kilitlenmiş ve geçmiş finansal dönemlerin salt-okunur bilançoları.",
+    "label": "Dönem Etiketi",
+    "status": "Durum",
+    "starting_balance": "Açılış Bakiyesi",
+    "total_in": "Toplam Gelir",
+    "total_out": "Toplam Gider",
+    "closing_balance": "Kapanış Bakiyesi",
+    "opened_at": "Açılış Tarihi",
+    "locked_at": "Kapanış Tarihi",
+    "inspect_ledger": "Defteri İncele",
+    "no_history": "Henüz arşivlenmiş dönem bulunmuyor.",
+    "status_locked": "Kilitli (Salt-Okunur)",
+    "status_open": "Aktif Dönem"
   }
 }
