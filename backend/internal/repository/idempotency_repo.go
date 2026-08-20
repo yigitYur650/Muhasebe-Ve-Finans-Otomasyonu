@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"deftersystem/backend/internal/domain"
@@ -17,10 +18,10 @@ func NewPostgresIdempotencyRepository(pool *pgxpool.Pool) domain.IdempotencyRepo
 	return &PostgresIdempotencyRepository{pool: pool}
 }
 
-func (r *PostgresIdempotencyRepository) Get(ctx context.Context, key string) (*domain.IdempotencyKey, error) {
-	query := `SELECT key, tenant_id, response_body, response_status, created_at FROM public.idempotency_keys WHERE key = $1`
+func (r *PostgresIdempotencyRepository) Get(ctx context.Context, key string, tenantID uuid.UUID) (*domain.IdempotencyKey, error) {
+	query := `SELECT key, tenant_id, response_body, response_status, created_at FROM public.idempotency_keys WHERE key = $1 AND tenant_id = $2`
 	var ik domain.IdempotencyKey
-	err := r.pool.QueryRow(ctx, query, key).Scan(
+	err := r.pool.QueryRow(ctx, query, key, tenantID).Scan(
 		&ik.Key, &ik.TenantID, &ik.ResponseBody, &ik.ResponseStatus, &ik.CreatedAt,
 	)
 	if err != nil {

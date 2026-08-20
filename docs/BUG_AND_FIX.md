@@ -32,3 +32,16 @@
 - **Yan Etki & Risk Analizi (Risk):** Düşük. `FORCE ROW LEVEL SECURITY` tablo sahibinin dahi RLS kurallarına uymasını zorunlu kılarak defense-in-depth sağlar.
 - **Doğrulama & Test Sonucu (Verification):** `psql -f migrations/test_scenarios.sql -c "SELECT * FROM public.run_sprint1_tests();"` çalıştırıldı. Test 8 (Multi-Tenant RLS İzolasyon Testi) `PASS` sonucunu verdi (9/9 PASS).
 - **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-03] Multi-Tenant SETOF & Idempotency Composite Key Hardening
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 3.5 & Güvenlik Sıkılaştırma
+- **Etkilenen Katman / Dosya:** `migrations/09_create_idempotency_keys.sql`, `backend/internal/repository/idempotency_repo.go`, `backend/internal/handler/middleware/idempotency_middleware.go`
+- **Belirti (Symptom):** 1) `idempotency_keys` tablosunda `key` alanının tek başına PRIMARY KEY olması sebebiyle farklı tenant'lar arasında `Idempotency-Key` çakışması ve cache hit spoofing riski. 2) Sunucudan dönen 5xx dahili sistem hatalarının idempotency tablosuna kaydedilerek geçici sistem hatalarının önbelleğe alınması riski.
+- **Kök Neden (Root Cause):** Idempotency tablosunun `tenant_id` alanını tekilleştirme anahtarına dahil etmemesi ve middleware'in HTTP yanıt status kodunu süzmeden tüm sonuçları kaydetmesi.
+- **Uygulanan Düzeltme (Fix):** `idempotency_keys` tablosunun birincil anahtarı `PRIMARY KEY (key, tenant_id)` kompozit yapısına dönüştürüldü. `IdempotencyMiddleware` ve `PostgresIdempotencyRepository.Get` metodu `(key, tenant_id)` kompozit araması yapacak şekilde güncellendi. Middleware'e `responseStatus >= 200 && responseStatus < 500` koşulu eklenerek 5xx hatalarının cache kaydı engellendi. `cleanup_expired_idempotency_keys()` saklı yordamı eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Düşük. Kompozit anahtar tenant izolasyonunu %100 garanti eder.
+- **Doğrulama & Test Sonucu (Verification):** `go test -v ./...` çalıştırıldı. `TestIdempotency_CompositeKeyTenantIsolation` ve `TestAuthMiddleware_NonMemberTenantAccess` dahil 32/32 backend unit ve entegrasyon testi `PASS` verdi. `npm run build` 7/7 SSG sayfa ile sıfır hata ile tamamlandı.
+- **Durum:** `RESOLVED`

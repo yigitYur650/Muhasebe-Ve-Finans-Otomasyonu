@@ -36,6 +36,6 @@ type TransactionRepository interface {
 
 // IdempotencyRepository defines database operations for idempotency keys.
 type IdempotencyRepository interface {
-	Get(ctx context.Context, key string) (*IdempotencyKey, error)
+	Get(ctx context.Context, key string, tenantID uuid.UUID) (*IdempotencyKey, error)
 	Save(ctx context.Context, key *IdempotencyKey) error
 }

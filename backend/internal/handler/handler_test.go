@@ -29,15 +29,17 @@ func NewMockIdemRepo() *MockIdemRepo {
 	return &MockIdemRepo{store: make(map[string]*domain.IdempotencyKey)}
 }
 
-func (m *MockIdemRepo) Get(ctx context.Context, key string) (*domain.IdempotencyKey, error) {
-	if val, ok := m.store[key]; ok {
+func (m *MockIdemRepo) Get(ctx context.Context, key string, tenantID uuid.UUID) (*domain.IdempotencyKey, error) {
+	compositeKey := key + ":" + tenantID.String()
+	if val, ok := m.store[compositeKey]; ok {
 		return val, nil
 	}
 	return nil, domain.ErrNotFound
 }
 
 func (m *MockIdemRepo) Save(ctx context.Context, idem *domain.IdempotencyKey) error {
-	m.store[idem.Key] = idem
+	compositeKey := idem.Key + ":" + idem.TenantID.String()
+	m.store[compositeKey] = idem
 	return nil
 }
 
@@ -304,4 +306,62 @@ func TestLockPeriod_StandartUserReturns403(t *testing.T) {
 	json.NewDecoder(res.Body).Decode(&envelope)
 	assert.False(t, envelope.Success)
 	assert.Equal(t, "UNAUTHORIZED", envelope.Error.Code)
+}
+
+func TestIdempotency_CompositeKeyTenantIsolation(t *testing.T) {
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	userID := uuid.New()
+	idemKey := "shared-idempotency-key-123"
+
+	mockPeriodSvc := new(MockPeriodService)
+	mockTxSvc := new(MockTransactionService)
+	mockTxRepo := new(MockTransactionRepo)
+	idemRepo := NewMockIdemRepo()
+
+	app := setupTestApp(mockPeriodSvc, mockTxSvc, mockTxRepo, idemRepo)
+
+	mockTxSvc.On("CreateTransaction", mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	descA := "Tenant A Tx"
+	periodIDA := uuid.New()
+
+	// Step 1: Submit transaction under Tenant A with idemKey
+	bodyA, _ := json.Marshal(handler.CreateTransactionRequest{
+		PeriodID:    periodIDA,
+		Direction:   domain.DirectionIn,
+		Channel:     domain.ChannelEft,
+		Amount:      decimal.NewFromFloat(100.00),
+		Description: &descA,
+	})
+	reqA := httptest.NewRequest(http.MethodPost, "/api/v1/transactions", bytes.NewReader(bodyA))
+	reqA.Header.Set("Content-Type", "application/json")
+	reqA.Header.Set(middleware.HeaderTenantID, tenantA.String())
+	reqA.Header.Set(middleware.HeaderUserID, userID.String())
+	reqA.Header.Set(middleware.HeaderIdempotencyKey, idemKey)
+
+	resA, err := app.Test(reqA, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resA.StatusCode)
+
+	// Step 2: Submit SAME idempotency key under Tenant B
+	// Should NOT hit Tenant A's cache (composite key isolation key + tenant_id)
+	descB := "Tenant B Tx"
+	bodyB, _ := json.Marshal(handler.CreateTransactionRequest{
+		PeriodID:    uuid.New(),
+		Direction:   domain.DirectionIn,
+		Channel:     domain.ChannelEft,
+		Amount:      decimal.NewFromFloat(200.00),
+		Description: &descB,
+	})
+	reqB := httptest.NewRequest(http.MethodPost, "/api/v1/transactions", bytes.NewReader(bodyB))
+	reqB.Header.Set("Content-Type", "application/json")
+	reqB.Header.Set(middleware.HeaderTenantID, tenantB.String())
+	reqB.Header.Set(middleware.HeaderUserID, userID.String())
+	reqB.Header.Set(middleware.HeaderIdempotencyKey, idemKey)
+
+	resB, err := app.Test(reqB, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resB.StatusCode)
+	assert.Empty(t, resB.Header.Get("X-Cache-Lookup"), "Tenant B request MUST NOT hit Tenant A idempotency cache")
 }

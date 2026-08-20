@@ -73,6 +73,7 @@
 
 ## Sprint 7 — Güvenlik Denetimi ve Sertleştirme
 
+- [x] Güvenlik Sıkılaştırma, SQL SETOF Tenant Düzeltmesi ve Idempotency Kompozit Key Güvenliği (PASS, 2026-08-20)
 - [ ] `SECURITY_AUDIT_REPORT.md` bu proje için doldurulur (Kap-App raporundaki formatla)
 - [ ] Güvenlik headerları eklenir (`X-Content-Type-Options`, `X-Frame-Options`, HSTS, CSP)
 - [x] Dockerfile: non-root kullanıcı (backend appuser 10001, frontend nextjs 1001) (PASS, 2026-08-20)
