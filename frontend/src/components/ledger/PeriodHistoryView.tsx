@@ -111,8 +111,8 @@ export const PeriodHistoryView: React.FC<PeriodHistoryViewProps> = ({
                     <td className="px-4 py-3 text-right font-mono font-bold text-cyan-300">
                       {formatTL(item.closing_balance)}
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-slate-400">
-                      {item.locked_at ? new Date(item.locked_at).toLocaleDateString() : '-'}
+                    <td className="px-4 py-3 text-center text-xs text-slate-400" suppressHydrationWarning>
+                      {item.locked_at ? new Date(item.locked_at).toLocaleDateString("tr-TR") : '-'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Button

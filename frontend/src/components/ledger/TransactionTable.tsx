@@ -138,7 +138,7 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }),
       columnHelper.accessor("createdAt", {
         header: () => tTx("createdAt"),
-        cell: (info) => <span className="text-xs text-slate-500">{info.getValue()}</span>,
+        cell: (info) => <span className="text-xs text-slate-500" suppressHydrationWarning>{info.getValue()}</span>,
       }),
       columnHelper.accessor("createdBy", {
         header: () => tTx("createdBy"),

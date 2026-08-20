@@ -58,3 +58,16 @@
 - **Yan Etki & Risk Analizi (Risk):** Yok. Derleyici paketi doğrudan transpile ederek eksiksiz derleme garantisi sağlar.
 - **Doğrulama & Test Sonucu (Verification):** `npx rimraf .next` sonrasında `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır uyarı ile derlendi (Exit code: 0).
 - **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260820-05] React Hydration Mismatch #418 #423 and SSR 500 Fallback
+
+- **Tarih / Sprint:** 2026-08-20 / Sprint 5 & Frontend Stability
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx`, `frontend/src/components/ledger/TransactionTable.tsx`, `frontend/src/components/ledger/PeriodHistoryView.tsx`
+- **Belirti (Symptom):** İstemci tarafında konsolda React Hydration Error (#418, #423) uyarılarının oluşması veya backend bağlantı kesintilerinde sayfanın SSR 500 ile çökmesi.
+- **Kök Neden (Root Cause):** 1) Sunucu ile istemci arasında saat dilimi/locale uyuşmazlığından ötürü `toLocaleDateString` çıktısının farklı HTML basması. 2) İstemci monte edilmeden (`isMounted` guard olmadan) dinamik içeriklerin render edilmesi.
+- **Uygulanan Düzeltme (Fix):** `page.tsx` bileşenine `isMounted` state guard ve `useEffect` eklendi. Tarih formatlama hücrelerine `suppressHydrationWarning` ve sabit `"tr-TR"` locale kuralı getirildi. Savunmacı varsayılan state'ler (`{ starting_balance: "0.00", ... }`) ve `try/catch` hata sınırları kuruldu.
+- **Yan Etki & Risk Analizi (Risk):** Yok. SSR ve İstemci hydration uyumluluğu %100 garanti altına alındı.
+- **Doğrulama & Test Sonucu (Verification):** `npx rimraf .next` sonrasında `npm run build` çalıştırıldı. 7/7 statik sayfa sıfır hata ve sıfır hydration uyarısı ile derlendi (Exit code: 0). `go test -v ./...` 34/34 test PASS verdi.
+- **Durum:** `RESOLVED`

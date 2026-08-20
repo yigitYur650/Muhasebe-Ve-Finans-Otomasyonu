@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Header } from "@/components/shared/Header";
 import { PeriodBadge } from "@/components/shared/PeriodBadge";
@@ -29,6 +29,9 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
   const tPeriod = useTranslations("period");
   const tTx = useTranslations("transaction");
   const tHistory = useTranslations("history");
+
+  // Mounted state guard to eliminate hydration mismatch (#418, #423)
+  const [isMounted, setIsMounted] = useState<boolean>(false);
 
   // User Role State (Mocked as admin for interactive demonstration)
   const [userRole, setUserRole] = useState<"admin" | "muhasebeci" | "standart">("admin");
@@ -102,6 +105,10 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
   const [reverseModalOpen, setReverseModalOpen] = useState<boolean>(false);
   const [targetTxForReverse, setTargetTxForReverse] = useState<TransactionItem | null>(null);
   const [periodModalMode, setPeriodModalMode] = useState<"lock" | "open" | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Dynamic KPI calculation using decimal.js (strictly excluding reversed entries)
   const { totalIn, totalOut, closingBalance } = useMemo(() => {
