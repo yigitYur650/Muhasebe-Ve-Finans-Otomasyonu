@@ -66,9 +66,10 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
     defaultHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  if (tenantId) defaultHeaders['X-Tenant-ID'] = tenantId;
-  if (userId) defaultHeaders['X-User-ID'] = userId;
-  if (userRole) defaultHeaders['X-User-Role'] = userRole;
+  // Ensure default tenant and user headers exist if not explicitly provided
+  defaultHeaders['X-Tenant-ID'] = tenantId || '00000000-0000-0000-0000-000000000001';
+  defaultHeaders['X-User-ID'] = userId || '00000000-0000-0000-0000-000000000002';
+  defaultHeaders['X-User-Role'] = userRole || 'admin';
   if (idempotencyKey) defaultHeaders['Idempotency-Key'] = idempotencyKey;
 
   const config: RequestInit = {
