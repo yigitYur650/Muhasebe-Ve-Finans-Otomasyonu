@@ -4,18 +4,20 @@ FROM golang:1.24-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 ENV GOTOOLCHAIN=auto
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy source code into WORKDIR
-COPY . .
+# Bağımlılıkları çek
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
 
-# Build static binary (handles both root context and backend context)
-RUN if [ -d "backend" ]; then cd backend; fi && \
-    go mod download && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-        -ldflags="-w -s" \
-        -o /app/api \
-        ./cmd/api
+# Backend kaynak kodunu kopyala
+COPY backend/ .
+
+# Binary'yi derle
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-w -s" \
+    -o /app/api \
+    ./cmd/api
 
 # Stage 2: Production Runner stage (minimal & secure)
 FROM alpine:3.20 AS runner
