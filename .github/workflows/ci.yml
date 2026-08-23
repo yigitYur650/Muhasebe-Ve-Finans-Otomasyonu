@@ -36,6 +36,8 @@ jobs:
           CGO_ENABLED=0 go build -v -o /dev/null ./cmd/api
           CGO_ENABLED=0 go build -v -o /dev/null ./cmd/e2e
           CGO_ENABLED=0 go build -v -o /dev/null ./cmd/capacity
+          CGO_ENABLED=0 go build -v -o /dev/null ./cmd/megastress
+          CGO_ENABLED=0 go build -v -o /dev/null ./cmd/breakpoint
 
       - name: Run Live E2E Integration Suite
         run: go run ./cmd/e2e/main.go
