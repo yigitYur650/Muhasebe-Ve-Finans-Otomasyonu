@@ -189,6 +189,20 @@
 - **Doğrulama & Test Sonucu (Verification):** `npm run build` (8/8 SSG sayfa 0 hata) ve `go test -v ./...` (45/45 PASS) ile doğrulandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260823-15] Render Docker Build Stat Command Directory Not Found Fix
+
+- **Tarih / Sprint:** 2026-08-23 / Sprint 8 Docker Fix
+- **Etkilenen Katman / Dosya:** `Dockerfile`, `backend/Dockerfile`, `backend/cmd/api/main.go`
+- **Belirti (Symptom):** Render üzerinde Docker derlemesi sırasında `stat /app/cmd/api: directory not found` hatası alınması ve derlemenin başarısız olması (Exit code: 1).
+- **Kök Neden (Root Cause):** Kök `Dockerfile` içerisindeki derleme adımlarının build context (`.`) ile `backend/` alt dizini arasındaki çalışma alanını uyuşumsuz yapılandırması.
+- **Uygulanan Düzeltme (Fix):** 1) Kök `Dockerfile` içerisinde `WORKDIR /app`, `COPY backend/go.mod backend/go.sum ./`, `RUN go mod download`, `COPY backend/ .` yapılandırması ile kök derleme bağlamı sabitlendi. 2) `backend/Dockerfile` içerisinde `WORKDIR /app`, `COPY go.mod go.sum ./`, `COPY . .` yapılandırması ile backend alt klasör bağlamı sabitlendi. 3) `cmd/api/main.go` içerisine dinamik `PORT` ortam değişkeni desteği (`os.Getenv("PORT")`) eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Hem yerel Docker derlemeleri hem de Render CI/CD süreçleri deterministic olarak başarıyla derlenmektedir.
+- **Doğrulama & Test Sonucu (Verification):** `cd backend && go build -o nul ./cmd/api` ve `npm run build` ile exit code 0 alınarak doğrulandı.
+- **Durum:** `RESOLVED`
+
+
 
 
 

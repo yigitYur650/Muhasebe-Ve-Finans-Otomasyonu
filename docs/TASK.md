@@ -96,6 +96,7 @@
 ## Sprint 8 — Deployment ve Release
 
 - [x] Docker Containerization, GitHub Actions CI/CD ve Production Deployment Hazırlığı (PASS, 2026-08-20)
+- [x] Docker Build Context Sabitlemesi & `backend/cmd/api/main.go` PORT Entegrasyonu (PASS, 2026-08-23)
 - [x] `render.yaml` (veya seçilen platform) — tüm env var'lar eksiksiz tanımlı (PASS, 2026-08-20)
 - [x] `RELEASE_NOTES.md` ilk sürüm için doldurulur (PASS, 2026-08-20)
 - [x] Canlıya hazır demo doğrulaması (PASS, 2026-08-20)

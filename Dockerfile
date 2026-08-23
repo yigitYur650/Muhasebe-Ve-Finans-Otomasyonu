@@ -4,7 +4,7 @@ FROM golang:1.24-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 ENV GOTOOLCHAIN=auto
 
-WORKDIR /app/backend
+WORKDIR /app
 
 # Bağımlılıkları çek
 COPY backend/go.mod backend/go.sum ./
