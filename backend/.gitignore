@@ -11,4 +11,4 @@
 *.dylib
 *.test
 *.out
-api
+/api
