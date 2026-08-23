@@ -127,6 +127,51 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     fetchLiveData();
   }, [selectedPeriodId]);
 
+  // Dynamic KPI calculation fallback using decimal.js
+  const localCalculatedSummary = useMemo(() => {
+    let sumIn = "0";
+    let sumOut = "0";
+
+    const filtered = transactions.filter(
+      (tx) => tx.periodId === selectedPeriod.id && !tx.reversedBy
+    );
+
+    for (const tx of filtered) {
+      if (tx.direction === "in") {
+        sumIn = addDecimal(sumIn, tx.amount).toString();
+      } else if (tx.direction === "out") {
+        sumOut = addDecimal(sumOut, tx.amount).toString();
+      }
+    }
+
+    const net = subDecimal(addDecimal(startingBalance, sumIn), sumOut).toString();
+
+    return {
+      period_id: selectedPeriod.id,
+      starting_balance: startingBalance,
+      total_in: sumIn,
+      total_out: sumOut,
+      closing_balance: net,
+    };
+  }, [transactions, selectedPeriod.id, startingBalance]);
+
+  const kpiSummaryData: PeriodSummaryData = liveSummary || localCalculatedSummary;
+
+  // Period History Items
+  const historyItems: PeriodHistoryItem[] = useMemo(() => {
+    return periods.map((p) => ({
+      period_id: p.id,
+      label: p.label,
+      status: p.status,
+      starting_balance: p.startingBalance,
+      total_in: "0",
+      total_out: "0",
+      closing_balance: p.startingBalance,
+      opened_at: "2026-08-01",
+      locked_at: p.status === "locked" ? "2026-08-01 23:59" : null,
+    }));
+  }, [periods]);
+
   // Handler: Create Transaction
   const handleCreateTransaction = async (data: {
     direction: "in" | "out";
