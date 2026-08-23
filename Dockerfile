@@ -6,14 +6,16 @@ ENV GOTOOLCHAIN=auto
 
 WORKDIR /app
 
-# Bağımlılıkları çek
-COPY backend/go.mod backend/go.sum ./
+# Copy repository files
+COPY . .
+
+# Normalize backend files into root /app if backend directory exists
+RUN if [ -d "backend" ]; then cp -r backend/. ./; fi
+
+# Download dependencies
 RUN go mod download
 
-# Backend kaynak kodunu kopyala
-COPY backend/ .
-
-# Binary'yi derle
+# Build static binary for Linux
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s" \
     -o /app/api \
