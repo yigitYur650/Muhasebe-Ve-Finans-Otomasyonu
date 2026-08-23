@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI Pipeline & Live Capacity Benchmark
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-ci:
-    name: Backend CI (Go)
+    name: Backend CI & Live Capacity Test (Go)
     runs-on: ubuntu-latest
 
     defaults:
@@ -31,8 +31,21 @@ jobs:
       - name: Run Backend Unit & Integration Tests
         run: go test -v -race ./...
 
-      - name: Verify Binary Compilation
-        run: CGO_ENABLED=0 go build -v -o /dev/null ./cmd/api
+      - name: Verify Binary Compilations
+        run: |
+          CGO_ENABLED=0 go build -v -o /dev/null ./cmd/api
+          CGO_ENABLED=0 go build -v -o /dev/null ./cmd/e2e
+          CGO_ENABLED=0 go build -v -o /dev/null ./cmd/capacity
+
+      - name: Run Live E2E Integration Suite
+        run: go run ./cmd/e2e/main.go
+        env:
+          LIVE_API_URL: "https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1"
+
+      - name: Run Live Smoke & Capacity Load Test
+        run: go run ./cmd/capacity/main.go
+        env:
+          LIVE_API_URL: "https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1"
 
   frontend-ci:
     name: Frontend CI (Next.js 15)
@@ -64,4 +77,4 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: "https://placeholder-ci.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-ci-key"
-          NEXT_PUBLIC_API_URL: "http://localhost:8080/api/v1"
+          NEXT_PUBLIC_API_URL: "https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1"
