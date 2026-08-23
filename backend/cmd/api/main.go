@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"deftersystem/backend/internal/domain"
 	"deftersystem/backend/internal/handler"
 	"deftersystem/backend/internal/repository"
 	"deftersystem/backend/internal/service"
@@ -44,10 +45,10 @@ func main() {
 		idemRepo = repository.NewPostgresIdempotencyRepository(pool)
 	} else {
 		log.Println("PostgreSQL connection unavailable; initializing in-memory fallback repositories.")
-		periodRepo = repository.NewMockPeriodRepository()
-		txRepo = repository.NewMockTransactionRepository()
-		tenantRepo = repository.NewMockTenantRepository()
-		idemRepo = repository.NewMockIdempotencyRepository()
+		periodRepo = repository.NewMockPeriodRepo()
+		txRepo = repository.NewMockTransactionRepo()
+		tenantRepo = repository.NewMockTenantRepo()
+		idemRepo = repository.NewMockIdemRepo()
 	}
 
 	periodSvc := service.NewPeriodService(periodRepo, tenantRepo, txRepo)
