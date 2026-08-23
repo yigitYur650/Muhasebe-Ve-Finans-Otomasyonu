@@ -77,13 +77,42 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     setIsMounted(true);
   }, []);
 
+  // Fetch periods & transactions from backend API
+  const fetchPeriods = async () => {
+    try {
+      const res = await apiFetch<any[]>("/periods/");
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: PeriodOption[] = res.data.map((p: any) => ({
+          id: p.id,
+          label: p.label,
+          status: p.status,
+          startingBalance: p.starting_balance || "0.00",
+        }));
+        setPeriods(mapped);
+        if (mapped[0]?.id) {
+          setSelectedPeriodId(mapped[0].id);
+        }
+      }
+    } catch {
+      // Fallback to default state
+    }
+  };
+
+  useEffect(() => {
+    fetchPeriods();
+  }, []);
+
   // Fetch Live Summary & Transactions from Backend API
   const fetchLiveData = async () => {
     if (!selectedPeriodId) return;
+    const periodUuid =
+      selectedPeriodId.length === 36
+        ? selectedPeriodId
+        : "00000000-0000-0000-0000-000000000001";
 
     setLoadingSummary(true);
     try {
-      const res = await apiFetch<PeriodSummaryData>(`/periods/${selectedPeriodId}/summary`);
+      const res = await apiFetch<PeriodSummaryData>(`/periods/${periodUuid}/summary`);
       if (res.success && res.data) {
         setLiveSummary(res.data);
       }
@@ -96,52 +125,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   useEffect(() => {
     fetchLiveData();
-  }, [selectedPeriodId, transactions]);
-
-  // Dynamic KPI calculation fallback using decimal.js
-  const localCalculatedSummary = useMemo(() => {
-    let sumIn = "0";
-    let sumOut = "0";
-
-    const filtered = transactions.filter(
-      (tx) => tx.periodId === selectedPeriod.id && !tx.reversedBy
-    );
-
-    for (const tx of filtered) {
-      if (tx.direction === "in") {
-        sumIn = addDecimal(sumIn, tx.amount).toString();
-      } else if (tx.direction === "out") {
-        sumOut = addDecimal(sumOut, tx.amount).toString();
-      }
-    }
-
-    const net = subDecimal(addDecimal(startingBalance, sumIn), sumOut).toString();
-
-    return {
-      period_id: selectedPeriod.id,
-      starting_balance: startingBalance,
-      total_in: sumIn,
-      total_out: sumOut,
-      closing_balance: net,
-    };
-  }, [transactions, selectedPeriod.id, startingBalance]);
-
-  const kpiSummaryData = liveSummary || localCalculatedSummary;
-
-  // Period History Items
-  const historyItems: PeriodHistoryItem[] = useMemo(() => {
-    return periods.map((p) => ({
-      period_id: p.id,
-      label: p.label,
-      status: p.status,
-      starting_balance: p.startingBalance,
-      total_in: "5450.75",
-      total_out: "3200.25",
-      closing_balance: "17250.50",
-      opened_at: "2026-08-01",
-      locked_at: p.status === "locked" ? "2026-08-01 23:59" : null,
-    }));
-  }, [periods]);
+  }, [selectedPeriodId]);
 
   // Handler: Create Transaction
   const handleCreateTransaction = async (data: {
@@ -151,34 +135,43 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     description: string;
     idempotencyKey: string;
   }) => {
+    const validPeriodUuid =
+      selectedPeriod?.id && selectedPeriod.id.length === 36
+        ? selectedPeriod.id
+        : "00000000-0000-0000-0000-000000000001";
+
     const newTx: TransactionItem = {
       id: `tx-${Date.now()}`,
-      periodId: selectedPeriod.id,
+      periodId: validPeriodUuid,
       direction: data.direction,
       channel: data.channel,
       amount: data.amount,
       description: data.description,
       createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-      createdBy: "Halil İbrahim",
+      createdBy: "Admin",
       reversedBy: null,
     };
 
     setTransactions((prev) => [newTx, ...prev]);
 
     try {
-      await apiFetch(`/transactions`, {
+      const res = await apiFetch<any>(`/transactions`, {
         method: "POST",
         headers: { "Idempotency-Key": data.idempotencyKey },
         body: JSON.stringify({
-          period_id: selectedPeriod.id,
+          period_id: validPeriodUuid,
           direction: data.direction,
           channel: data.channel,
           amount: data.amount,
           description: data.description,
         }),
       });
-    } catch {
-      // Local state is preserved
+
+      if (res.success) {
+        fetchLiveData();
+      }
+    } catch (err) {
+      console.error("Failed to post transaction to backend:", err);
     }
   };
 
