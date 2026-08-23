@@ -111,7 +111,7 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
               </label>
               <Input
                 type="email"
-                placeholder={envAdminEmail}
+                placeholder="eposta@sirket.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="text-xs bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500"
@@ -160,10 +160,6 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
                 tAuth("loginAction")
               )}
             </Button>
-
-            <div className="p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-center text-[11px] text-zinc-400 w-full">
-              Demo Admin: <strong className="text-amber-400">{envAdminEmail}</strong> | Şifre: <strong className="text-amber-400">{envAdminPassword}</strong>
-            </div>
           </CardFooter>
         </form>
       </Card>

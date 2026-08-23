@@ -124,7 +124,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
               </label>
               <Input
                 type="email"
-                placeholder="admin@oncuotogaz.com"
+                placeholder="eposta@sirket.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="text-xs bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500"

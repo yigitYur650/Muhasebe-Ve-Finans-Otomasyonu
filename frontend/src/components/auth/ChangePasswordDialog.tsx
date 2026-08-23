@@ -42,7 +42,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
       await apiFetch("/auth/security-question", {
         method: "POST",
         body: JSON.stringify({
-          email: "admin@oncuotogaz.com",
+          email: "admin@sirket.com",
           question,
           answer,
         }),
