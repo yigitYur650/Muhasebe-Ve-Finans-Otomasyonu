@@ -96,10 +96,6 @@ func (m *MockPeriodRepo) GetLatestByTenant(ctx context.Context, tenantID uuid.UU
 	if latest != nil {
 		return latest, nil
 	}
-	// Fallback return first available period if any
-	for _, p := range m.periods {
-		return p, nil
-	}
 	return nil, domain.ErrPeriodNotFound
 }
 
