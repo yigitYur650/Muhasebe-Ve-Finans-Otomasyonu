@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -47,7 +47,7 @@ export function ImportCsvDialog({
   };
 
   const handleDownloadTemplate = () => {
-    window.open(`/api/v1/periods/template/csv`, "_blank");
+    window.open(getApiUrl(`/periods/template/csv`), "_blank");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +67,7 @@ export function ImportCsvDialog({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch(`/api/v1/periods/${periodId}/import/csv`, {
+      const response = await fetch(getApiUrl(`/periods/${periodId}/import/csv`), {
         method: "POST",
         body: formData,
       });

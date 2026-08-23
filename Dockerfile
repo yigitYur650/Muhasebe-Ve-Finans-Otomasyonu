@@ -6,18 +6,16 @@ ENV GOTOOLCHAIN=auto
 
 WORKDIR /app
 
-# Copy go mod and sum from backend directory
-COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+# Copy source code into WORKDIR
+COPY . .
 
-# Copy backend source code directly into WORKDIR /app
-COPY backend/ ./
-
-# Build static binary for Linux
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s" \
-    -o /app/api \
-    ./cmd/api
+# Build static binary (handles both root context and backend context)
+RUN if [ -d "backend" ]; then cd backend; fi && \
+    go mod download && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+        -ldflags="-w -s" \
+        -o /app/api \
+        ./cmd/api
 
 # Stage 2: Production Runner stage (minimal & secure)
 FROM alpine:3.20 AS runner

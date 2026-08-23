@@ -7,26 +7,24 @@ ENV GOTOOLCHAIN=auto
 
 WORKDIR /app
 
-# Retrieve & cache dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source files
+# Copy source code into WORKDIR
 COPY . .
 
-# Build static binary for Linux CGO_ENABLED=0
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s" \
-    -o /app/api \
-    ./cmd/api
+# Build static binary (handles both root context and backend context)
+RUN if [ -d "backend" ]; then cd backend; fi && \
+    go mod download && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+        -ldflags="-w -s" \
+        -o /app/api \
+        ./cmd/api
 
 # Stage 2: Production Runner stage (minimal & secure)
 FROM alpine:3.20 AS runner
 
-# Install runtime dependencies (ca-certificates for HTTPS/TLS to Supabase)
+# Install runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata wget
 
-# Create non-root user for security (rootless execution)
+# Create non-root user for security
 RUN addgroup -g 10001 -S appgroup && \
     adduser -u 10001 -S appuser -G appgroup
 

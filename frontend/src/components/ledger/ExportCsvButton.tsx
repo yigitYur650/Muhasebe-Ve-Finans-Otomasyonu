@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 interface ExportCsvButtonProps {
   periodId: string;
@@ -17,7 +18,7 @@ export function ExportCsvButton({ periodId, periodLabel }: ExportCsvButtonProps)
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch(`/api/v1/periods/${periodId}/export/csv`);
+      const response = await fetch(getApiUrl(`/periods/${periodId}/export/csv`));
       if (!response.ok) {
         throw new Error("Export failed");
       }
@@ -33,7 +34,7 @@ export function ExportCsvButton({ periodId, periodLabel }: ExportCsvButtonProps)
       window.URL.revokeObjectURL(url);
     } catch {
       // Fallback client-side CSV trigger
-      window.open(`/api/v1/periods/${periodId}/export/csv`, "_blank");
+      window.open(getApiUrl(`/periods/${periodId}/export/csv`), "_blank");
     } finally {
       setIsExporting(false);
     }

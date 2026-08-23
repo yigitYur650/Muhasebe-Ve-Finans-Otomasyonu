@@ -1,6 +1,24 @@
 import { createClient } from './supabase/client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+
+export function getApiBaseUrl(): string {
+  let url = rawApiUrl.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    if (url.endsWith('/api')) {
+      url += '/v1';
+    } else {
+      url += '/api/v1';
+    }
+  }
+  return url;
+}
+
+export function getApiUrl(endpoint: string): string {
+  const baseUrl = getApiBaseUrl();
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${baseUrl}${path}`;
+}
 
 export interface ApiEnvelope<T> {
   success: boolean;
@@ -62,7 +80,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
   };
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetch(getApiUrl(endpoint), config);
     const data: ApiEnvelope<T> = await response.json();
     return data;
   } catch (error: any) {
