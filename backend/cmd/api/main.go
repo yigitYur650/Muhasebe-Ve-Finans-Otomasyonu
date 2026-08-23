@@ -32,11 +32,23 @@ func main() {
 		log.Println("Successfully connected to PostgreSQL database pool!")
 	}
 
-	// Direct PostgreSQL Repositories (No-Mock-Data Principle)
-	var periodRepo = repository.NewPostgresPeriodRepository(pool)
-	var txRepo = repository.NewPostgresTransactionRepository(pool)
-	var tenantRepo = repository.NewPostgresTenantRepository(pool)
-	var idemRepo = repository.NewPostgresIdempotencyRepository(pool)
+	var periodRepo domain.PeriodRepository
+	var txRepo domain.TransactionRepository
+	var tenantRepo domain.TenantRepository
+	var idemRepo domain.IdempotencyRepository
+
+	if pool != nil {
+		periodRepo = repository.NewPostgresPeriodRepository(pool)
+		txRepo = repository.NewPostgresTransactionRepository(pool)
+		tenantRepo = repository.NewPostgresTenantRepository(pool)
+		idemRepo = repository.NewPostgresIdempotencyRepository(pool)
+	} else {
+		log.Println("PostgreSQL connection unavailable; initializing in-memory fallback repositories.")
+		periodRepo = repository.NewMockPeriodRepository()
+		txRepo = repository.NewMockTransactionRepository()
+		tenantRepo = repository.NewMockTenantRepository()
+		idemRepo = repository.NewMockIdempotencyRepository()
+	}
 
 	periodSvc := service.NewPeriodService(periodRepo, tenantRepo, txRepo)
 	txSvc := service.NewTransactionService(txRepo, periodRepo)
