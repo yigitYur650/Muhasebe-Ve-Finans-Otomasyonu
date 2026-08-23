@@ -2,20 +2,17 @@
 FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
-ENV GOTOOLCHAIN=auto
 
 WORKDIR /app
 
-# Copy repository files
-COPY . .
-
-# Normalize backend files into root /app if backend directory exists
-RUN if [ -d "backend" ]; then cp -r backend/. ./; fi
-
-# Download dependencies
+# Bağımlılıkları çek
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Build static binary for Linux
+# Backend kaynak kodlarını kopyala
+COPY . ./
+
+# Binary'yi derle
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s" \
     -o /app/api \
