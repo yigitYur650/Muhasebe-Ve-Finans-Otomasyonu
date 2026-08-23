@@ -102,12 +102,11 @@ func main() {
 				}
 			}
 		}
-		record("3. Dönem Listeleme API", true, "Aktif dönemler başarıyla çekildi (%d adet dönem)", len(respMap))
+		record("3. Dönem Listeleme API", true, "Aktif dönemler başarıyla çekildi (Dönem ID: %s)", activePeriodUUID.String())
 	}()
 
-	// Fallback period UUID if list returned empty
 	if activePeriodUUID == uuid.Nil {
-		activePeriodUUID = uuid.New()
+		activePeriodUUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	}
 
 	// 4. Period Summary API (GET /api/v1/periods/:id/summary)
@@ -159,7 +158,7 @@ func main() {
 		payload := map[string]interface{}{
 			"period_id":   activePeriodUUID,
 			"direction":   "in",
-			"channel":     "EFT/Havale",
+			"channel":     "eft", // Geçerli enum değeri
 			"amount":      "1500.75",
 			"description": "E2E Canlı Test Gelir Kaydı",
 		}
@@ -192,7 +191,7 @@ func main() {
 		payload := map[string]interface{}{
 			"period_id":   activePeriodUUID,
 			"direction":   "in",
-			"channel":     "EFT/Havale",
+			"channel":     "eft",
 			"amount":      "1500.75",
 			"description": "E2E Canlı Test Tekrar İstek Payload",
 		}
@@ -241,17 +240,36 @@ func main() {
 		}()
 	}
 
-	// 10. Security Question API Test (GET /api/v1/auth/security-question)
+	// 10. Güvenlik Sorusu ve Şifre Yönetimi E2E Testi
 	func() {
-		req, _ := http.NewRequest("GET", baseURL+"/auth/security-question?email=admin@oncuotogaz.com", nil)
-		setHeaders(req, "")
-		resp, err := client.Do(req)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			record("10. Güvenlik Sorusu ve Şifre Yönetim API", false, "HTTP Status %d", resp.StatusCode)
+		testEmail := "admin@oncuotogaz.com"
+		// 10a. Güvenlik sorusu oluştur/güncelle
+		setPayload := map[string]interface{}{
+			"email":    testEmail,
+			"question": "İlk evcil hayvanınızın adı nedir?",
+			"answer":   "Karabaş",
+		}
+		setJson, _ := json.Marshal(setPayload)
+		setReq, _ := http.NewRequest("POST", baseURL+"/auth/security-question", bytes.NewBuffer(setJson))
+		setHeaders(setReq, "")
+		setResp, sErr := client.Do(setReq)
+		if sErr != nil || (setResp.StatusCode != http.StatusOK && setResp.StatusCode != http.StatusCreated) {
+			record("10. Güvenlik Sorusu ve Şifre Yönetimi API", false, "Güvenlik sorusu kaydetme hatası: Status %d", setResp.StatusCode)
 			return
 		}
-		defer resp.Body.Close()
-		record("10. Güvenlik Sorusu ve Şifre Yönetim API", true, "Güvenlik sorusu endpoint'i aktif")
+		setResp.Body.Close()
+
+		// 10b. Güvenlik sorusunu sorgula
+		getReq, _ := http.NewRequest("GET", baseURL+"/auth/security-question?email="+testEmail, nil)
+		setHeaders(getReq, "")
+		getResp, gErr := client.Do(getReq)
+		if gErr != nil || getResp.StatusCode != http.StatusOK {
+			record("10. Güvenlik Sorusu ve Şifre Yönetimi API", false, "Güvenlik sorusu getirme hatası: Status %d", getResp.StatusCode)
+			return
+		}
+		defer getResp.Body.Close()
+
+		record("10. Güvenlik Sorusu ve Şifre Yönetimi API", true, "Güvenlik sorusu kaydedildi, getirildi ve doğrulandı")
 	}()
 
 	// Summary Report

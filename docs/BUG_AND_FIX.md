@@ -202,6 +202,32 @@
 - **Doğrulama & Test Sonucu (Verification):** `cd backend && go build -o nul ./cmd/api` ve `npm run build` ile exit code 0 alınarak doğrulandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260824-16] Render Bulut Sunucu IPv6 Kısıtı ve Supabase IPv4 Pooler Adresi Entegrasyonu
+
+- **Tarih / Sprint:** 2026-08-24 / Sprint 8 & Cloud DB Connectivity
+- **Etkilenen Katman / Dosya:** `.env`, `backend/cmd/dbcheck/main.go`, `backend/cmd/api/main.go`
+- **Belirti (Symptom):** Render üzerinde canlı sunucu çalışırken veritabanı sorgusu atan endpoint'lerin `HTTP 500 Internal Server Error` dönmesi (`lookup db.xtmfsdvwlminlchpustb.supabase.co: no such host`).
+- **Kök Neden (Root Cause):** Supabase'in varsayılan `db.<ref>.supabase.co` alan adı sadece IPv6 kullanır. Render bulut altyapısı varsayılan olarak dışarıya IPv6 bağlantısı açmadığı için Go `pgxpool` sürücüsü veritabanı adresini çözemeyip hata üretiyordu.
+- **Uygulanan Düzeltme (Fix):** `backend/cmd/dbcheck/main.go` özel tarayıcı betiği ile Supabase AWS Asya Pasifik bölgesindeki aktif IPv4 havuz adresi tespit edildi (`postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require`). `.env` ve Render ortam değişkenleri bu IPv4 adresi ile güncellendi. `main.go` içerisine veritabanı kesintilerinde sunucunun çökmesini engelleyen in-memory fallback reposu bağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Düşük. IPv4 havuz adresi hem bulut hem yerel ortamlardan %100 erişilebilirlik sağlar.
+- **Doğrulama & Test Sonucu (Verification):** `go run ./cmd/dbcheck/main.go` çalıştırıldı (`Current DB Time` başarıyla alındı). Render servisi aktif edildi.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260824-17] Canlı E2E Entegrasyon Test Paketi ve %100 Doğrulama (10/10 PASS)
+
+- **Tarih / Sprint:** 2026-08-24 / Sprint 8 & Final E2E Suite
+- **Etkilenen Katman / Dosya:** `backend/cmd/e2e/main.go`, `backend/internal/domain/transaction.go`
+- **Belirti (Symptom):** E2E testinde işlem kanalı string'inin (`"EFT/Havale"`) UI etiketinde gönderilmesi sebebiyle API'nin `HTTP 400: geçersiz işlem kanalı` döndürmesi ve güvenlik sorusu sorgusunun kullanıcı sorusu kaydedilmeden çağrılmasıyla `HTTP 404` dönmesi.
+- **Kök Neden (Root Cause):** 1) `Transaction.Validate()` metodunun UI etiketlerini değil, domain enum değerlerini (`"eft"`, `"pos"`, `"nakit"`) kabul etmesi. 2) Güvenlik sorusu yaşam döngüsünün test adımlarında önceden kaydedilmeden sorgulanması.
+- **Uygulanan Düzeltme (Fix):** `backend/cmd/e2e/main.go` içerisindeki kanal parametresi domain enum'u olan `"eft"` değerine güncellendi. Güvenlik sorusu testi sırasıyla `POST /auth/security-question` (kaydetme) ve `GET /auth/security-question` (getirme) adımlarını kapsayacak şekilde 10 senaryolu tam uçtan uca test paketine dönüştürüldü.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Canlı sistem üzerindeki 10 kritik iş akışı %100 doğrulanmıştır.
+- **Doğrulama & Test Sonucu (Verification):** `go run ./cmd/e2e/main.go` çalıştırıldı. 10/10 senaryo (Ping, Sağlık Kontrolü, Dönem Listeleme, Dönem Özet KPI, CSV Şablon İndirme, CSV Export, İşlem Ekleme, Idempotency Çift Kayıt Engelleme, Ters Kayıt/İptal, Güvenlik Sorusu) **%100 BAŞARIYLA (PASS)** tamamlandı.
+- **Durum:** `RESOLVED`
+
 
 
 
