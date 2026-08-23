@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"deftersystem/backend/internal/domain"
@@ -22,6 +23,9 @@ func SetupRouter(
 	tenantSvc ...domain.TenantService,
 ) {
 	app.Use(recover.New())
+	app.Use(logger.New(logger.Config{
+		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
+	}))
 
 	// Dynamic CORS configuration accepting any frontend origin with credentials
 	app.Use(cors.New(cors.Config{
