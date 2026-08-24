@@ -28,6 +28,7 @@ export interface TransactionItem {
   createdBy: string;
   createdAt: string;
   reversedBy?: string | null;
+  isReversalEntry?: boolean;
 }
 
 interface TransactionTableProps {
@@ -149,11 +150,20 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
         header: () => t("status"),
         cell: (info) => {
           const isReversed = !!info.row.original.reversedBy;
+          const isReversalEntry = !!info.row.original.isReversalEntry;
           if (isReversed) {
             return (
               <Badge variant="outline" className="gap-1 text-rose-600 border-rose-200 bg-rose-50 text-[10px]">
                 <Ban className="w-3 h-3" />
                 {tTx("reversed")}
+              </Badge>
+            );
+          }
+          if (isReversalEntry) {
+            return (
+              <Badge variant="outline" className="gap-1 text-blue-700 border-blue-200 bg-blue-50 text-[10px]">
+                <RotateCcw className="w-3 h-3 text-blue-600" />
+                Denkleştirme
               </Badge>
             );
           }
@@ -170,7 +180,8 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
         cell: (info) => {
           const tx = info.row.original;
           const isReversed = !!tx.reversedBy;
-          const isDisabled = isPeriodLocked || isReversed;
+          const isReversalEntry = !!tx.isReversalEntry;
+          const isDisabled = isPeriodLocked || isReversed || isReversalEntry;
 
           return (
             <div className="text-right">

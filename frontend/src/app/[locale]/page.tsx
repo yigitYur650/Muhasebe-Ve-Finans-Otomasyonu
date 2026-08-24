@@ -120,17 +120,32 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
       const txRes = await apiFetch<any[]>(`/periods/${periodUuid}/transactions`);
       if (txRes.success && Array.isArray(txRes.data)) {
-        const mappedTx: TransactionItem[] = txRes.data.map((tx: any) => ({
-          id: tx.id,
-          periodId: tx.period_id,
-          direction: tx.direction,
-          channel: tx.channel,
-          amount: String(tx.amount),
-          description: tx.description,
-          createdAt: tx.created_at ? tx.created_at.slice(0, 16).replace("T", " ") : "",
-          createdBy: "Admin",
-          reversedBy: tx.reversed_by || null,
-        }));
+        // Build set of target original transaction IDs that have been reversed by a reversal entry
+        const reversedTargetIds = new Set<string>();
+        txRes.data.forEach((tx: any) => {
+          if (tx.reversed_by) {
+            reversedTargetIds.add(tx.reversed_by);
+          }
+        });
+
+        const mappedTx: TransactionItem[] = txRes.data.map((tx: any) => {
+          const isTargetReversed = reversedTargetIds.has(tx.id);
+          const isReversal = !!tx.reversed_by;
+
+          return {
+            id: tx.id,
+            periodId: tx.period_id,
+            direction: tx.direction,
+            channel: tx.channel,
+            amount: String(tx.amount),
+            description: tx.description,
+            createdAt: tx.created_at ? tx.created_at.slice(0, 16).replace("T", " ") : "",
+            createdBy: "Admin",
+            // Set reversedBy on the ORIGINAL transaction so UI renders it as reversed/canceled:
+            reversedBy: isTargetReversed ? "reversed" : null,
+            isReversalEntry: isReversal,
+          };
+        });
         setTransactions(mappedTx);
       }
     } catch {
@@ -150,7 +165,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     let sumOut = "0";
 
     const filtered = transactions.filter(
-      (tx) => tx.periodId === selectedPeriod.id && !tx.reversedBy
+      (tx) => tx.periodId === selectedPeriod.id
     );
 
     for (const tx of filtered) {
@@ -260,6 +275,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
       createdBy: "Admin",
       reversedBy: null,
+      isReversalEntry: true,
     };
 
     setTransactions((prev) =>
