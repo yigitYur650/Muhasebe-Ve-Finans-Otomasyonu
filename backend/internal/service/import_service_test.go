@@ -107,3 +107,40 @@ func TestImportService_SuccessfulImportPennyAccurate(t *testing.T) {
 	assert.True(t, res.TotalAmount.Equal(decimal.NewFromFloat(5151.50)), "Total amount must be exactly 5151.50")
 	mockTxRepo.AssertNumberOfCalls(t, "Create", 3)
 }
+
+func TestImportService_TurkishExcelFormat(t *testing.T) {
+	ctx := context.Background()
+	tenantID := uuid.New()
+	periodID := uuid.New()
+	userID := uuid.New()
+
+	openPeriod := &domain.Period{
+		ID:       periodID,
+		TenantID: tenantID,
+		Status:   domain.PeriodStatusOpen,
+	}
+
+	mockTxRepo := new(MockTransactionRepo)
+	mockPeriodRepo := new(MockPeriodRepo)
+	svc := service.NewImportService(mockTxRepo, mockPeriodRepo)
+
+	mockPeriodRepo.On("GetByID", ctx, periodID).Return(openPeriod, nil)
+	mockTxRepo.On("Create", ctx, mock.Anything).Return(nil)
+
+	// Turkish Excel format matching user's MAYIS25 spreadsheet
+	csvContent := `MAYIS AYI NAKİT,,₺221.646,05,,
+Tarih,Açıklama,GELEN TUTAR,GİDEN TUTAR
+1.05.2025,NİSAN AYINDAN MAYIS AYINA DEVİR,"265.698,04 ₺",
+1.05.2025,DUKKAN KIRASI,,"39.000,00 ₺"
+1.05.2025,HALİL YUR FİBABANK KREDİ GELİRİ,"220.618,00 ₺",
+1.05.2025,POS,"11.550,00 ₺",
+5.05.2025,PERSONEL MAAŞ ELDEN,,"40.854,00 ₺"
+`
+
+	res, err := svc.ImportTransactionsFromCSV(ctx, tenantID, periodID, strings.NewReader(csvContent), userID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, 5, res.ImportedCount)
+	mockTxRepo.AssertNumberOfCalls(t, "Create", 5)
+}
