@@ -104,12 +104,12 @@ func (r *PostgresPeriodRepository) GetPeriodHistory(ctx context.Context, tenantI
 			p.label,
 			p.status,
 			p.starting_balance,
-			COALESCE(SUM(CASE WHEN t.direction = 'in' THEN t.amount ELSE 0 END), 0) AS total_in,
-			COALESCE(SUM(CASE WHEN t.direction = 'out' THEN t.amount ELSE 0 END), 0) AS total_out,
+			COALESCE(SUM(CASE WHEN t.direction = 'in' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0) AS total_in,
+			COALESCE(SUM(CASE WHEN t.direction = 'out' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0) AS total_out,
 			p.opened_at,
 			p.locked_at
 		FROM public.periods p
-		LEFT JOIN public.transactions t ON p.id = t.period_id AND t.reversed_by IS NULL
+		LEFT JOIN public.transactions t ON p.id = t.period_id
 		WHERE p.tenant_id = $1
 		GROUP BY p.id, p.label, p.status, p.starting_balance, p.opened_at, p.locked_at
 		ORDER BY p.opened_at DESC

@@ -134,9 +134,15 @@ func (r *PostgresTransactionRepository) ReverseTransaction(ctx context.Context, 
 		return domain.ErrTransactionNotFound
 	}
 
-	// Step 2: Ensure original transaction has not already been reversed by another entry
+	// Step 2: Ensure original transaction has not already been reversed by another entry or flag
 	var alreadyReversed bool
-	checkReversedQuery := `SELECT EXISTS(SELECT 1 FROM public.transactions WHERE reversed_by = $1)`
+	checkReversedQuery := `
+		SELECT EXISTS(
+			SELECT 1 FROM public.transactions WHERE reversed_by = $1
+			UNION ALL
+			SELECT 1 FROM public.transactions WHERE id = $1 AND reversed_by IS NOT NULL
+		)
+	`
 	err = dbTx.QueryRow(ctx, checkReversedQuery, origID).Scan(&alreadyReversed)
 	if err != nil {
 		return MapSQLError(err)
