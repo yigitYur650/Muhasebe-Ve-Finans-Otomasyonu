@@ -31,11 +31,8 @@ func main() {
 	resetSQL := `
 	BEGIN;
 	TRUNCATE TABLE 
-		public.transactions,
 		public.idempotency_keys,
-		public.user_security_questions,
-		public.periods,
-		public.tenant_members,
+		public.user_security,
 		public.tenants
 	RESTART IDENTITY CASCADE;
 
@@ -43,14 +40,6 @@ func main() {
 	VALUES (
 		'00000000-0000-0000-0000-000000000001',
 		'Öncü Otogaz Muhasebe ve Finans',
-		NOW()
-	);
-
-	INSERT INTO public.tenant_members (tenant_id, user_id, role, joined_at)
-	VALUES (
-		'00000000-0000-0000-0000-000000000001',
-		'00000000-0000-0000-0000-000000000002',
-		'admin',
 		NOW()
 	);
 
