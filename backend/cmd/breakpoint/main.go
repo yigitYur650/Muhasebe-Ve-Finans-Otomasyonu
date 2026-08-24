@@ -139,7 +139,7 @@ func main() {
 		if failRate >= 50.0 {
 			ultimateBreakpoint = fmt.Sprintf("Seviye %d (%d Paralel Worker, %d İstek, %0.2f RPS, Hata Oranı: %%%0.1f)",
 				lvl.Level, lvl.Workers, lvl.TotalReqs, rps, failRate)
-			fmt.Println("\n🔴 🚨 TAM KIRILMA NOKTASI TESPİT EDİLDİ! (%50'den fazla yanıtsız/hata döndü)")
+			fmt.Printf("🎯 %%50+ YANITSIZ/TIMEOUT BREAKPOINT NOKTASI TESPİT EDİLDİ! (%d Eşzamanlı İş Parçacığı)\n", lvl.Workers)
 			break
 		}
 

@@ -58,11 +58,11 @@ func IdempotencyMiddleware(idemRepo domain.IdempotencyRepository) fiber.Handler 
 			return err
 		}
 
-		// Save response in repository ONLY IF status code is successful/controlled (< 500)
+		// Save response in repository ONLY IF status code is successful (2xx)
 		responseStatus := c.Response().StatusCode()
 		responseBody := c.Response().Body()
 
-		if responseStatus >= 200 && responseStatus < 500 {
+		if responseStatus >= 200 && responseStatus < 300 {
 			idemKey := &domain.IdempotencyKey{
 				Key:            key,
 				TenantID:       tenantID,
