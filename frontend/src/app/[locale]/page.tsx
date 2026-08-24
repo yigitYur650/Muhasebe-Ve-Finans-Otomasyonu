@@ -45,9 +45,9 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   // Periods State (Default current period, fetched from live database)
   const [periods, setPeriods] = useState<PeriodOption[]>([
-    { id: "p-2026-08", label: "2026-08", status: "open", startingBalance: "0.00" },
+    { id: "00000000-0000-0000-0000-000000000001", label: "2026-08", status: "open", startingBalance: "0.00" },
   ]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("p-2026-08");
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("00000000-0000-0000-0000-000000000001");
 
   const selectedPeriod = useMemo(
     () => periods.find((p) => p.id === selectedPeriodId) || periods[0],
@@ -433,12 +433,12 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
               <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">{tTx("title")}</h3>
                 <span className="text-xs text-slate-500 font-semibold">
-                  {transactions.filter((tx) => tx.periodId === selectedPeriod.id).length} İşlem Kaydı
+                  {transactions.filter((tx) => tx.periodId === selectedPeriod.id || (selectedPeriod.label === "2026-08" && tx.periodId === "00000000-0000-0000-0000-000000000001")).length} İşlem Kaydı
                 </span>
               </div>
 
               <TransactionTable
-                transactions={transactions.filter((tx) => tx.periodId === selectedPeriod.id)}
+                transactions={transactions.filter((tx) => tx.periodId === selectedPeriod.id || (selectedPeriod.label === "2026-08" && tx.periodId === "00000000-0000-0000-0000-000000000001"))}
                 isPeriodLocked={periodStatus === "locked"}
                 onReverse={(tx) => {
                   setTargetTxForReverse(tx);
