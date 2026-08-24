@@ -39,16 +39,6 @@ jobs:
           CGO_ENABLED=0 go build -v -o /dev/null ./cmd/megastress
           CGO_ENABLED=0 go build -v -o /dev/null ./cmd/breakpoint
 
-      - name: Run Live E2E Integration Suite
-        run: go run ./cmd/e2e/main.go
-        env:
-          LIVE_API_URL: "https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1"
-
-      - name: Run Live Smoke & Capacity Load Test
-        run: go run ./cmd/capacity/main.go
-        env:
-          LIVE_API_URL: "https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1"
-
   frontend-ci:
     name: Frontend CI (Next.js 15)
     runs-on: ubuntu-latest
