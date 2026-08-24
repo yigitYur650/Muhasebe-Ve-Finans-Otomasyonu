@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,6 +15,9 @@ func NewPostgresPool(connString string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse postgres conn string: %w", err)
 	}
+
+	// Disable prepared statements caching for Supabase PgBouncer Pooler (port 6543)
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	// Production pool configurations
 	config.MaxConns = 25
