@@ -22,6 +22,7 @@ type PeriodRepository interface {
 	OpenNextPeriod(ctx context.Context, tenantID uuid.UUID, label string) (*Period, error)
 	Create(ctx context.Context, period *Period) error
 	Lock(ctx context.Context, id uuid.UUID) error
+	Unlock(ctx context.Context, id uuid.UUID) error
 	GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]PeriodHistoryItem, error)
 }
 

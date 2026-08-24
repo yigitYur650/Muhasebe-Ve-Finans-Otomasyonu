@@ -85,6 +85,18 @@ func (r *PostgresPeriodRepository) Lock(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
+func (r *PostgresPeriodRepository) Unlock(ctx context.Context, id uuid.UUID) error {
+	query := `UPDATE public.periods SET status = 'open', locked_at = NULL WHERE id = $1`
+	cmd, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return MapSQLError(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return domain.ErrPeriodNotFound
+	}
+	return nil
+}
+
 func (r *PostgresPeriodRepository) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
 	query := `
 		SELECT 

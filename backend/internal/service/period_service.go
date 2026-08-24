@@ -62,6 +62,24 @@ func (s *DefaultPeriodService) LockPeriod(ctx context.Context, periodID uuid.UUI
 	return s.periodRepo.Lock(ctx, periodID)
 }
 
+func (s *DefaultPeriodService) UnlockPeriod(ctx context.Context, periodID uuid.UUID, requestingUserID uuid.UUID) error {
+	period, err := s.periodRepo.GetByID(ctx, periodID)
+	if err != nil {
+		return err
+	}
+
+	member, err := s.tenantRepo.GetMember(ctx, period.TenantID, requestingUserID)
+	if err != nil {
+		return err
+	}
+
+	if member.Role != domain.RoleAdmin && member.Role != domain.RoleMuhasebeci {
+		return domain.ErrUnauthorized
+	}
+
+	return s.periodRepo.Unlock(ctx, periodID)
+}
+
 func (s *DefaultPeriodService) GetPeriodSummary(ctx context.Context, periodID uuid.UUID) (*domain.PeriodSummary, error) {
 	return s.txRepo.GetSummaryByPeriodID(ctx, periodID)
 }

@@ -22,6 +22,7 @@ type PeriodSummary struct {
 type PeriodService interface {
 	OpenNextPeriod(ctx context.Context, tenantID uuid.UUID, label string) (*Period, error)
 	LockPeriod(ctx context.Context, periodID uuid.UUID, requestingUserID uuid.UUID) error
+	UnlockPeriod(ctx context.Context, periodID uuid.UUID, requestingUserID uuid.UUID) error
 	GetPeriodSummary(ctx context.Context, periodID uuid.UUID) (*PeriodSummary, error)
 	ListPeriods(ctx context.Context, tenantID uuid.UUID) ([]Period, error)
 	GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]PeriodHistoryItem, error)

@@ -77,6 +77,7 @@ func SetupRouter(
 	periodsGroup.Post("/:id/import/csv", importH.ImportTransactionsCSV)
 	periodsGroup.Post("/open", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
 	periodsGroup.Post("/:id/lock", middleware.IdempotencyMiddleware(idemRepo), periodH.LockPeriod)
+	periodsGroup.Post("/:id/unlock", middleware.IdempotencyMiddleware(idemRepo), periodH.UnlockPeriod)
 	periodsGroup.Get("/:id/summary", periodH.GetPeriodSummary)
 	periodsGroup.Get("/:id/transactions", txH.ListTransactions)
 

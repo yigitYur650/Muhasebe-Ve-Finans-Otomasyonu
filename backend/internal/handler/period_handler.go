@@ -64,6 +64,29 @@ func (h *PeriodHandler) LockPeriod(c *fiber.Ctx) error {
 	})
 }
 
+func (h *PeriodHandler) UnlockPeriod(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	periodID, err := uuid.Parse(idParam)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Geçersiz dönem ID formatı")
+	}
+
+	userIDVal := c.Locals(middleware.LocalUserIDKey)
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok || userID == uuid.Nil {
+		return domain.ErrUnauthorized
+	}
+
+	if err := h.service.UnlockPeriod(c.UserContext(), periodID, userID); err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(ResponseEnvelope{
+		Success: true,
+		Data:    fiber.Map{"message": "Dönem kilidi başarıyla açıldı"},
+	})
+}
+
 func (h *PeriodHandler) GetPeriodSummary(c *fiber.Ctx) error {
 	idParam := c.Params("id")
 	periodID, err := uuid.Parse(idParam)

@@ -134,6 +134,17 @@ func (m *MockPeriodRepo) Lock(ctx context.Context, id uuid.UUID) error {
 	return domain.ErrPeriodNotFound
 }
 
+func (m *MockPeriodRepo) Unlock(ctx context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if p, ok := m.periods[id]; ok {
+		p.Status = domain.PeriodStatusOpen
+		p.LockedAt = nil
+		return nil
+	}
+	return domain.ErrPeriodNotFound
+}
+
 func (m *MockPeriodRepo) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

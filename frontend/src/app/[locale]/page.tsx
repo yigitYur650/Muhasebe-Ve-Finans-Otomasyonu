@@ -19,6 +19,7 @@ import { apiFetch } from "@/lib/api";
 import {
   PlusCircle,
   Lock,
+  Unlock,
   Calendar,
   AlertTriangle,
   FileSpreadsheet,
@@ -54,7 +55,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     [periods, selectedPeriodId]
   );
 
-  const periodStatus = selectedPeriod?.status || "open";
+  const periodStatus: "open" | "locked" = (selectedPeriod?.status as "open" | "locked") || "open";
   const periodLabel = selectedPeriod?.label || "2026-08";
   const startingBalance = selectedPeriod?.startingBalance || "0.00";
 
@@ -295,6 +296,23 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     }
   };
 
+  // Handler: Unlock Period
+  const handleUnlockPeriod = async () => {
+    setPeriods((prev) =>
+      prev.map((p) => (p.id === selectedPeriod.id ? { ...p, status: "open" } : p))
+    );
+
+    try {
+      await apiFetch(`/periods/${selectedPeriod.id}/unlock`, {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      });
+      fetchLiveData();
+    } catch {
+      // Local state is preserved
+    }
+  };
+
   // Handler: Open Next Period
   const handleOpenNextPeriod = async (label: string, idempotencyKey: string) => {
     const newPeriod: PeriodOption = {
@@ -394,14 +412,25 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
                   {tPeriod("openNextPeriod")}
                 </Button>
 
-                <Button
-                  variant="destructive"
-                  onClick={() => setPeriodModalMode("lock")}
-                  className="gap-2 h-9 text-xs font-semibold"
-                >
-                  <Lock className="w-4 h-4" />
-                  {tPeriod("lockPeriod")}
-                </Button>
+                {(periodStatus as string) === "locked" ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleUnlockPeriod}
+                    className="gap-2 h-9 text-xs font-semibold border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+                  >
+                    <Unlock className="w-4 h-4 text-amber-600" />
+                    Dönem Kilidini Aç
+                  </Button>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setPeriodModalMode("lock")}
+                    className="gap-2 h-9 text-xs font-semibold"
+                  >
+                    <Lock className="w-4 h-4" />
+                    {tPeriod("lockPeriod")}
+                  </Button>
+                )}
 
                 <Button
                   onClick={() => setCreateModalOpen(true)}
