@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -19,8 +20,12 @@ func main() {
 	})
 
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" || dbURL == "postgres://postgres:[YOUR-DB-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?sslmode=require" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/deftersystem?sslmode=disable"
+	if dbURL == "" || dbURL == "postgres://postgres:[YOUR-DB-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?sslmode=require" || len(dbURL) < 10 {
+		dbURL = "postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	}
+	// Fallback IPv6 to IPv4 pooler replacement
+	if strings.Contains(dbURL, "db.xtmfsdvwlminlchpustb.supabase.co") {
+		dbURL = "postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
 	}
 
 	log.Printf("Connecting to live PostgreSQL database...")
