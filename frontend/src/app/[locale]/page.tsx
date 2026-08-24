@@ -120,17 +120,42 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
       const txRes = await apiFetch<any[]>(`/periods/${periodUuid}/transactions`);
       if (txRes.success && Array.isArray(txRes.data)) {
-        // Build set of target original transaction IDs that have been reversed by a reversal entry
-        const reversedTargetIds = new Set<string>();
+        const idMap = new Map<string, any>();
+        txRes.data.forEach((tx: any) => idMap.set(tx.id, tx));
+
+        const isOriginalReversed = new Set<string>();
+        const isReversalEntry = new Set<string>();
+
         txRes.data.forEach((tx: any) => {
           if (tx.reversed_by) {
-            reversedTargetIds.add(tx.reversed_by);
+            const targetTx = idMap.get(tx.reversed_by);
+            const isDescReversal = tx.description?.includes("[İPTAL/TERS KAYIT]");
+            const targetDescReversal = targetTx?.description?.includes("[İPTAL/TERS KAYIT]");
+
+            if (targetTx) {
+              if (isDescReversal || !targetDescReversal) {
+                isOriginalReversed.add(targetTx.id);
+                isReversalEntry.add(tx.id);
+              } else {
+                isOriginalReversed.add(tx.id);
+                isReversalEntry.add(targetTx.id);
+              }
+            } else {
+              if (isDescReversal) {
+                isReversalEntry.add(tx.id);
+                isOriginalReversed.add(tx.reversed_by);
+              } else {
+                isOriginalReversed.add(tx.id);
+              }
+            }
+          } else if (tx.description?.includes("[İPTAL/TERS KAYIT]")) {
+            isReversalEntry.add(tx.id);
           }
         });
 
         const mappedTx: TransactionItem[] = txRes.data.map((tx: any) => {
-          const isTargetReversed = reversedTargetIds.has(tx.id);
-          const isReversal = !!tx.reversed_by;
+          const isOrigReversed = isOriginalReversed.has(tx.id);
+          const isRevEntry = isReversalEntry.has(tx.id);
 
           return {
             id: tx.id,
@@ -141,9 +166,8 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
             description: tx.description,
             createdAt: tx.created_at ? tx.created_at.slice(0, 16).replace("T", " ") : "",
             createdBy: "Admin",
-            // Set reversedBy on the ORIGINAL transaction so UI renders it as reversed/canceled:
-            reversedBy: isTargetReversed ? "reversed" : null,
-            isReversalEntry: isReversal,
+            reversedBy: isOrigReversed ? "reversed" : null,
+            isReversalEntry: isRevEntry,
           };
         });
         setTransactions(mappedTx);
