@@ -139,7 +139,7 @@ func main() {
 		if failRate >= 50.0 {
 			ultimateBreakpoint = fmt.Sprintf("Seviye %d (%d Paralel Worker, %d İstek, %0.2f RPS, Hata Oranı: %%%0.1f)",
 				lvl.Level, lvl.Workers, lvl.TotalReqs, rps, failRate)
-			fmt.Printf("🎯 %%50+ YANITSIZ/TIMEOUT BREAKPOINT NOKTASI TESPİT EDİLDİ! (%d Eşzamanlı İş Parçacığı)\n", lvl.Workers)
+			fmt.Printf("🎯 %s YANITSIZ/TIMEOUT BREAKPOINT NOKTASI TESPİT EDİLDİ! (%d Eşzamanlı İş Parçacığı)\n", "%50+", lvl.Workers)
 			break
 		}
 
@@ -150,7 +150,7 @@ func main() {
 	fmt.Println("📊 %50 YANI TSIZ/HATA KIRILMA NOKTASI RAPORU")
 	fmt.Println("==========================================================================")
 	if ultimateBreakpoint != "" {
-		fmt.Printf("🔴 CANLI RENDER SUNUCUSU BURADA ÇÖKTÜ / %50+ YANI TSIZ KALDI:\n   👉 %s\n", ultimateBreakpoint)
+		fmt.Printf("🔴 CANLI RENDER SUNUCUSU BURADA ÇÖKTÜ / %s YANITSIZ KALDI:\n   👉 %s\n", "%50+", ultimateBreakpoint)
 	} else {
 		fmt.Println("🟢 SUNUCU İNANILMAZ! 3,000 Eşzamanlı Paralel Worker Yükü Altında Bile %50 Hata Oranına Ulaşmadı!")
 	}

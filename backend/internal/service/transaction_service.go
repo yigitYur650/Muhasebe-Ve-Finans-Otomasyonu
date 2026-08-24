@@ -46,10 +46,6 @@ func (s *DefaultTransactionService) ReverseTransaction(ctx context.Context, orig
 		return nil, err
 	}
 
-	if orig.ReversedBy != nil {
-		return nil, domain.ErrTransactionAlreadyReversed
-	}
-
 	period, err := s.periodRepo.GetByID(ctx, orig.PeriodID)
 	if err != nil {
 		return nil, err
@@ -77,7 +73,7 @@ func (s *DefaultTransactionService) ReverseTransaction(ctx context.Context, orig
 		Description: &desc,
 		CreatedBy:   createdBy,
 		CreatedAt:   time.Now(),
-		ReversedBy:  nil,
+		ReversedBy:  &origID,
 	}
 
 	if err := s.txRepo.ReverseTransaction(ctx, origID, revTx); err != nil {

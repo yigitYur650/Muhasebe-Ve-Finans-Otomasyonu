@@ -30,7 +30,7 @@ func MapSQLError(err error) error {
 			if strings.Contains(msg, "locked") || strings.Contains(msg, "kilitli") {
 				return domain.ErrPeriodLocked
 			}
-			return domain.ErrPeriodLocked
+			return err
 		}
 	}
 

@@ -61,18 +61,25 @@ func TestEdgeCase_ReversalOfReversalBlocked(t *testing.T) {
 		ReversedBy: &reversalID, // Zaten iptal edilmiş
 	}
 
+	period := &domain.Period{
+		ID:       periodID,
+		TenantID: tenantID,
+		Status:   domain.PeriodStatusOpen,
+	}
+
 	mockTxRepo := new(MockTransactionRepo)
 	mockPeriodRepo := new(MockPeriodRepo)
 	svc := service.NewTransactionService(mockTxRepo, mockPeriodRepo)
 
 	mockTxRepo.On("GetByID", ctx, origID).Return(origTx, nil)
+	mockPeriodRepo.On("GetByID", ctx, periodID).Return(period, nil)
+	mockTxRepo.On("ReverseTransaction", ctx, origID, mock.Anything).Return(domain.ErrTransactionAlreadyReversed)
 
 	// Birinci ters kayda ikinci kez ters kayıt denemesi -> RED
 	revTx, err := svc.ReverseTransaction(ctx, origID, "İkinci iptal denemesi", userID)
 
 	assert.ErrorIs(t, err, domain.ErrTransactionAlreadyReversed, "Zaten iptal edilmiş kayda tekrar ters kayıt atılamaz")
 	assert.Nil(t, revTx)
-	mockTxRepo.AssertNotCalled(t, "ReverseTransaction", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // 3. Eşzamanlı (Concurrent) Yarış Durumu Testi

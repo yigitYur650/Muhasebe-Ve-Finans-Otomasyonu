@@ -61,6 +61,11 @@ func (m *MockPeriodService) LockPeriod(ctx context.Context, periodID, requesting
 	return args.Error(0)
 }
 
+func (m *MockPeriodService) UnlockPeriod(ctx context.Context, periodID, requestingUserID uuid.UUID) error {
+	args := m.Called(ctx, periodID, requestingUserID)
+	return args.Error(0)
+}
+
 func (m *MockPeriodService) GetPeriodSummary(ctx context.Context, periodID uuid.UUID) (*domain.PeriodSummary, error) {
 	args := m.Called(ctx, periodID)
 	if args.Get(0) == nil {
@@ -187,6 +192,11 @@ func (m *MockPeriodRepo) Create(ctx context.Context, period *domain.Period) erro
 }
 
 func (m *MockPeriodRepo) Lock(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockPeriodRepo) Unlock(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }

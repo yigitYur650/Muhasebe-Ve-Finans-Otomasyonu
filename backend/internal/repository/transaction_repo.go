@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
@@ -92,7 +91,7 @@ func (r *PostgresTransactionRepository) GetSummaryByPeriodID(ctx context.Context
 			COALESCE(SUM(CASE WHEN t.direction = 'in' THEN t.amount ELSE 0 END), 0) AS total_in,
 			COALESCE(SUM(CASE WHEN t.direction = 'out' THEN t.amount ELSE 0 END), 0) AS total_out
 		FROM public.periods p
-		LEFT JOIN public.transactions t ON p.id = t.period_id AND t.reversed_by IS NULL
+		LEFT JOIN public.transactions t ON p.id = t.period_id
 		WHERE p.id = $1
 		GROUP BY p.id, p.starting_balance
 	`
@@ -112,7 +111,7 @@ func (r *PostgresTransactionRepository) GetSummaryByPeriodID(ctx context.Context
 	return &summary, nil
 }
 
-// ReverseTransaction performs an atomic reversal by marking the original transaction and inserting a reversal entry.
+// ReverseTransaction performs an atomic reversal by inserting a new reversal entry referencing origID. Zero UPDATE statements are executed.
 func (r *PostgresTransactionRepository) ReverseTransaction(ctx context.Context, origID uuid.UUID, revTx *domain.Transaction) error {
 	if err := revTx.Validate(); err != nil {
 		return err
@@ -124,31 +123,30 @@ func (r *PostgresTransactionRepository) ReverseTransaction(ctx context.Context, 
 	}
 	defer dbTx.Rollback(ctx)
 
-	// Step 1: Ensure original transaction exists and is not already reversed
-	var isReversed bool
-	checkQuery := `SELECT reversed_by IS NOT NULL FROM public.transactions WHERE id = $1`
-	err = dbTx.QueryRow(ctx, checkQuery, origID).Scan(&isReversed)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return domain.ErrTransactionNotFound
-		}
-		return MapSQLError(err)
-	}
-	if isReversed {
-		return domain.ErrTransactionAlreadyReversed
-	}
-
-	// Step 2: Mark original transaction as reversed by revTx.ID
-	updateQuery := `UPDATE public.transactions SET reversed_by = $1 WHERE id = $2 AND reversed_by IS NULL`
-	cmd, err := dbTx.Exec(ctx, updateQuery, revTx.ID, origID)
+	// Step 1: Ensure original transaction exists
+	var exists bool
+	checkOrigQuery := `SELECT EXISTS(SELECT 1 FROM public.transactions WHERE id = $1)`
+	err = dbTx.QueryRow(ctx, checkOrigQuery, origID).Scan(&exists)
 	if err != nil {
 		return MapSQLError(err)
 	}
-	if cmd.RowsAffected() == 0 {
+	if !exists {
+		return domain.ErrTransactionNotFound
+	}
+
+	// Step 2: Ensure original transaction has not already been reversed by another entry
+	var alreadyReversed bool
+	checkReversedQuery := `SELECT EXISTS(SELECT 1 FROM public.transactions WHERE reversed_by = $1)`
+	err = dbTx.QueryRow(ctx, checkReversedQuery, origID).Scan(&alreadyReversed)
+	if err != nil {
+		return MapSQLError(err)
+	}
+	if alreadyReversed {
 		return domain.ErrTransactionAlreadyReversed
 	}
 
-	// Step 3: Insert the reversal transaction entry
+	// Step 3: Insert the reversal transaction entry (reversed_by = origID)
+	revTx.ReversedBy = &origID
 	insertQuery := `
 		INSERT INTO public.transactions (id, tenant_id, period_id, direction, channel, amount, description, created_by, created_at, reversed_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -169,13 +167,5 @@ func (r *PostgresTransactionRepository) ReverseTransaction(ctx context.Context, 
 }
 
 func (r *PostgresTransactionRepository) MarkReversed(ctx context.Context, targetID, reversalID uuid.UUID) error {
-	query := `UPDATE public.transactions SET reversed_by = $1 WHERE id = $2 AND reversed_by IS NULL`
-	cmd, err := r.pool.Exec(ctx, query, reversalID, targetID)
-	if err != nil {
-		return MapSQLError(err)
-	}
-	if cmd.RowsAffected() == 0 {
-		return domain.ErrTransactionAlreadyReversed
-	}
 	return nil
 }

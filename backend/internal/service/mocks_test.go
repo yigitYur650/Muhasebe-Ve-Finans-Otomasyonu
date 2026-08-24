@@ -88,6 +88,11 @@ func (m *MockPeriodRepo) Lock(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockPeriodRepo) Unlock(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 func (m *MockPeriodRepo) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {
 	args := m.Called(ctx, tenantID)
 	if args.Get(0) == nil {

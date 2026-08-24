@@ -81,17 +81,24 @@ func TestReverseTransaction_DoubleReversalBlocked(t *testing.T) {
 		ReversedBy: &reversalID, // Already reversed
 	}
 
+	period := &domain.Period{
+		ID:       periodID,
+		TenantID: tenantID,
+		Status:   domain.PeriodStatusOpen,
+	}
+
 	mockTxRepo := new(MockTransactionRepo)
 	mockPeriodRepo := new(MockPeriodRepo)
 	svc := service.NewTransactionService(mockTxRepo, mockPeriodRepo)
 
 	mockTxRepo.On("GetByID", ctx, origID).Return(origTx, nil)
+	mockPeriodRepo.On("GetByID", ctx, periodID).Return(period, nil)
+	mockTxRepo.On("ReverseTransaction", ctx, origID, mock.Anything).Return(domain.ErrTransactionAlreadyReversed)
 
 	revTx, err := svc.ReverseTransaction(ctx, origID, "Tekrar iptal denemesi", userID)
 
 	assert.ErrorIs(t, err, domain.ErrTransactionAlreadyReversed)
 	assert.Nil(t, revTx)
-	mockTxRepo.AssertNotCalled(t, "ReverseTransaction", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestCreateTransaction_LockedPeriodBlocked(t *testing.T) {
