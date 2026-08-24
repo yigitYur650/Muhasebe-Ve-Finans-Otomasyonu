@@ -88,8 +88,8 @@ func (r *PostgresTransactionRepository) GetSummaryByPeriodID(ctx context.Context
 		SELECT 
 			p.id AS period_id,
 			p.starting_balance,
-			COALESCE(SUM(CASE WHEN t.direction = 'in' THEN t.amount ELSE 0 END), 0) AS total_in,
-			COALESCE(SUM(CASE WHEN t.direction = 'out' THEN t.amount ELSE 0 END), 0) AS total_out
+			COALESCE(SUM(CASE WHEN t.direction = 'in' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0) AS total_in,
+			COALESCE(SUM(CASE WHEN t.direction = 'out' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0) AS total_out
 		FROM public.periods p
 		LEFT JOIN public.transactions t ON p.id = t.period_id
 		WHERE p.id = $1

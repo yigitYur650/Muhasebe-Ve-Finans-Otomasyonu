@@ -189,7 +189,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     let sumOut = "0";
 
     const filtered = transactions.filter(
-      (tx) => tx.periodId === selectedPeriod.id
+      (tx) => tx.periodId === selectedPeriod.id && !tx.reversedBy && !tx.isReversalEntry
     );
 
     for (const tx of filtered) {

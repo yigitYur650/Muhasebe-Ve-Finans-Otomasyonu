@@ -46,9 +46,18 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
   const [globalFilter, setGlobalFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredData = useMemo(() => {
     return transactions.filter((tx) => {
+      // Status filter
+      const isReversedOrReversal = !!tx.reversedBy || !!tx.isReversalEntry;
+      if (statusFilter === "active" && isReversedOrReversal) {
+        return false;
+      }
+      if (statusFilter === "reversed" && !isReversedOrReversal) {
+        return false;
+      }
       // Direction filter
       if (directionFilter !== "all" && tx.direction !== directionFilter) {
         return false;
@@ -69,7 +78,7 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }
       return true;
     });
-  }, [transactions, globalFilter, channelFilter, directionFilter]);
+  }, [transactions, globalFilter, channelFilter, directionFilter, statusFilter]);
 
   const columns = useMemo(
     () => [
@@ -241,6 +250,18 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {/* Status Filter (Aktif vs İptal) */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[165px] text-xs font-medium">
+              <SelectValue placeholder="Durum Süzgeci" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm İşlemler</SelectItem>
+              <SelectItem value="active">Sadece Aktif Kayıtlar</SelectItem>
+              <SelectItem value="reversed">İptal/Denkleştirme</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Direction Filter */}
           <Select value={directionFilter} onValueChange={setDirectionFilter}>
             <SelectTrigger className="w-[140px] text-xs">
