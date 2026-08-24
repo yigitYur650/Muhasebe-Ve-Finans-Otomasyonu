@@ -201,8 +201,10 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         ? selectedPeriod.id
         : "00000000-0000-0000-0000-000000000001";
 
+    const tempUuid = crypto.randomUUID();
+
     const newTx: TransactionItem = {
-      id: `tx-${Date.now()}`,
+      id: tempUuid,
       periodId: validPeriodUuid,
       direction: data.direction,
       channel: data.channel,
@@ -228,7 +230,11 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         }),
       });
 
-      if (res.success) {
+      if (res.success && res.data?.id) {
+        const realId = res.data.id;
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === tempUuid ? { ...t, id: realId } : t))
+        );
         fetchLiveData();
       }
     } catch (err) {
@@ -241,7 +247,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     const origTx = transactions.find((t) => t.id === targetTxId);
     if (!origTx) return;
 
-    const reversalTxId = `tx-rev-${Date.now()}`;
+    const reversalTxId = crypto.randomUUID();
 
     const reversalTx: TransactionItem = {
       id: reversalTxId,
@@ -251,7 +257,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       amount: origTx.amount,
       description: `[İPTAL/TERS KAYIT] ${reason}`,
       createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-      createdBy: "Halil İbrahim",
+      createdBy: "Admin",
       reversedBy: null,
     };
 
@@ -265,7 +271,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         headers: { "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({ reason }),
       });
-      if (res.success) {
+      if (res.success && res.data?.id) {
         fetchLiveData();
       }
     } catch {
