@@ -116,6 +116,22 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       if (res.success && res.data) {
         setLiveSummary(res.data);
       }
+
+      const txRes = await apiFetch<any[]>(`/periods/${periodUuid}/transactions`);
+      if (txRes.success && Array.isArray(txRes.data)) {
+        const mappedTx: TransactionItem[] = txRes.data.map((tx: any) => ({
+          id: tx.id,
+          periodId: tx.period_id,
+          direction: tx.direction,
+          channel: tx.channel,
+          amount: String(tx.amount),
+          description: tx.description,
+          createdAt: tx.created_at ? tx.created_at.slice(0, 16).replace("T", " ") : "",
+          createdBy: "Admin",
+          reversedBy: tx.reversed_by || null,
+        }));
+        setTransactions(mappedTx);
+      }
     } catch {
       // Silent fallback to local calculated summary
     } finally {
@@ -244,11 +260,14 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     );
 
     try {
-      await apiFetch(`/transactions/${targetTxId}/reverse`, {
+      const res = await apiFetch<any>(`/transactions/${targetTxId}/reverse`, {
         method: "POST",
         headers: { "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({ reason }),
       });
+      if (res.success) {
+        fetchLiveData();
+      }
     } catch {
       // Local state is preserved
     }
