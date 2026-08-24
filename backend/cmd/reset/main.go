@@ -30,6 +30,7 @@ func main() {
 
 	resetSQL := `
 	BEGIN;
+	ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_created_by_fkey;
 	TRUNCATE TABLE 
 		public.idempotency_keys,
 		public.user_security,

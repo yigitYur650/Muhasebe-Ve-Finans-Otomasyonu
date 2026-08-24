@@ -1,5 +1,8 @@
 BEGIN;
 
+-- 0. Dış Anahtar Kısıtını Esnet (API İstekleri İçin)
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_created_by_fkey;
+
 -- 1. Tüm Test ve İşlem Verilerini Güvenle Temizle (CASCADE)
 TRUNCATE TABLE 
     public.idempotency_keys,

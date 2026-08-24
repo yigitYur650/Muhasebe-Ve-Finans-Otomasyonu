@@ -67,6 +67,18 @@ func main() {
 	defer pool.Close()
 
 	ctx := context.Background()
+
+	// Direct DB Insert Test
+	_, execErr := pool.Exec(ctx, `
+		INSERT INTO public.transactions (id, tenant_id, period_id, direction, channel, amount, description, created_by, created_at)
+		VALUES ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'in', 'eft', 9999.00, 'Doğrudan Supabase SQL Kaydı Testi', '00000000-0000-0000-0000-000000000002', NOW())
+		ON CONFLICT (id) DO NOTHING;
+	`)
+	if execErr != nil {
+		log.Printf("❌ Doğrudan INSERT Hatası: %v", execErr)
+	} else {
+		log.Println("✅ Doğrudan SQL INSERT Başarıyla Çalıştı!")
+	}
 	query := `
 		SELECT id::text, period_id::text, direction, channel, amount::text, description, created_at 
 		FROM public.transactions 
