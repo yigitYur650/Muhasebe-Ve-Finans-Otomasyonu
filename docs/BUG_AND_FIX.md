@@ -254,6 +254,19 @@
 - **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile frontend sıfır hata ile derlendi (0 error). SQL migration'ı Supabase'e uygulanmak üzere hazırlandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-20] Supabase Auth 400 Hatasında tr.json auth.invalidCredentials Eksikliği ve IntlError Çökmesi
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/messages/tr.json`, `frontend/src/messages/en.json`, `frontend/src/app/[locale]/login/page.tsx`
+- **Belirti (Symptom):** Kullanıcı henüz kayıtlı olmayan bir hesapla veya yanlış şifreyle giriş yapmayı denediğinde konsolda `POST .../auth/v1/token?grant_type=password 400 (Bad Request)` ve hemen ardından `IntlError: MISSING_MESSAGE: Could not resolve auth.invalidCredentials in messages for locale tr.` hatasının patlaması; arayüzde kullanıcı dostu hata mesajı yerine uncaught exception oluşması.
+- **Kök Neden (Root Cause):** 1) Supabase Auth'un geçersiz oturum açma isteklerine standart HTTP 400 dönmesi. 2) `frontend/src/messages/tr.json` sözlüğünde `auth.invalidCredentials` anahtarının tanımlanmamış olması (`en.json` içinde varken `tr.json` dosyasında eksik bırakılması). 3) Giriş formundaki yeni kayıt butonlarının hardcoded metin barındırması.
+- **Uygulanan Düzeltme (Fix):** 1) `frontend/src/messages/tr.json` dosyasına `"invalidCredentials": "E-posta adresi veya şifre hatalı."` ve kayıt modu çeviri anahtarları eklendi. 2) `frontend/src/messages/en.json` dosyasına eşleşen kayıt anahtarları eklendi. 3) `login/page.tsx` içerisindeki tüm durum mesajları ve buton etiketleri `tAuth` i18n anahtarlarına bağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. `next-intl` eksik anahtar hatası vermez; kullanıcıya düzgün kırmızı uyarı kutusu gösterilir.
+- **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` çalıştırıldı (0 error). JSON sözlükleri ve tip uyumluluğu doğrulandı.
+- **Durum:** `RESOLVED`
+
 
 
 
