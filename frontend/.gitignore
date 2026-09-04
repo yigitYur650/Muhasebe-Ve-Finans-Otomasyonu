@@ -1,0 +1,14 @@
+# Environment variables
+.env
+.env*.local
+!.env.example
+
+# Node dependencies & Next.js builds
+node_modules/
+.next/
+out/
+build/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
