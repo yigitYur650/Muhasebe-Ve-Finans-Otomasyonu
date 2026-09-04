@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"deftersystem/backend/internal/repository"
 )
 
 func main() {
-	dbURL := "postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	}
 	pool, err := repository.NewPostgresPool(dbURL)
 	if err != nil {
 		log.Fatalf("Pool err: %v", err)
