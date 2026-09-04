@@ -17,8 +17,10 @@
 │   │   │   └── main.go          # Otomatik Supabase veritabanı migration aracı
 │   │   ├── /dbcheck
 │   │   │   └── main.go          # Supabase havuz & DNS bağlantı kontrol aracı
-│   │   └── /reset
-│   │       └── main.go          # Test ve teslimat veritabanı sıfırlama aracı
+│   │   ├── /reset
+│   │   │   └── main.go          # Test ve teslimat veritabanı sıfırlama aracı
+│   │   └── /run_yaml_tests
+│   │       └── main.go          # YAML tabanlı canlı muhasebe yaşam döngüsü test koşucusu
 │   ├── /internal
 │   │   ├── /domain              # Entity struct'ları, custom error'lar, repository/service interfaceleri & unit testleri
 │   │   ├── /repository          # PostgreSQL pgxpool erişim katmanı, error mapping & unit testleri

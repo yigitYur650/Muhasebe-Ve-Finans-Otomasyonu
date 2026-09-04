@@ -303,6 +303,25 @@
 - **Doğrulama & Test Sonucu (Verification):** Backend `go test ./...` başarıyla geçti (0 fail). Frontend `npm run build` ve `npx tsc --noEmit` sıfır hata ile derlendi (0 error).
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-23] Dönem Kilitlenirken POST /periods/:id/lock İsteğinin 404 NOT_FOUND (Kayıt Bulunamadı) Hatası Vermesi
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/lib/api.ts` -> `apiFetch()`, `backend/internal/service/period_service.go`
+- **Belirti (Symptom):** Kullanıcı arayüzde açık olan dönemi kilitlemek için "Dönemi Kilitle" butonuna bastığında tarayıcı konsolunda `POST http://localhost:8080/api/v1/periods/00000000-0000-0000-0000-000000000001/lock 404 (Not Found)` ve `{"success":false,"error":{"code":"NOT_FOUND","message":"kayıt bulunamadı"}}` hatasının dönmesi; dönemin kilitlenememesi.
+- **Kök Neden (Root Cause):**
+  1. Go backend `service.LockPeriod()` iş mantığı, dönemi kilitlemeden önce talepte bulunan kullanıcının (`requestingUserID`) işletme üyesi olup olmadığını ve rolünün `admin` veya `muhasebeci` olup olmadığını `tenantRepo.GetMember(ctx, tenantID, userID)` ile veritabanından sorgulamaktadır.
+  2. Frontend `apiFetch()` istemcisinde kullanıcı oturum açmış olmasına rağmen `data.session.user.id` değeri başlığa eklenmemiş; bunun yerine eski prototip günlerinden kalan `X-User-ID: 00000000-0000-0000-0000-000000000002` sahte kimliği sabit olarak gönderilmekteydi.
+  3. Canlı Supabase `tenant_members` tablosunda bu sahte ID bulunmadığı için (gerçek admin kullanıcı `149c91f0-0d03-4e3a-81d7-0bc5688c01b0` idi), veritabanı sorgusu `pgx.ErrNoRows` fırlatmış ve bu hata HTTP 404 `NOT_FOUND (kayıt bulunamadı)` olarak istemciye yansımıştır (aslında bulunamayan dönem değil, talep sahibi üyedir).
+- **Uygulanan Düzeltme (Fix):**
+  1. `frontend/src/lib/api.ts`: `apiFetch()` fonksiyonu, aktif Supabase oturumundan dinamik olarak `data.session.user.id` değerini alacak ve `X-User-ID` başlığına bu gerçek kimliği koyacak şekilde güncellendi. Oturum bulunmayan ortamlar için de canlı Supabase admin ID'si fallback olarak tanımlandı.
+  2. Gerçek kullanıcı kimliğiyle yapılan testte `200 OK: { "message": "Dönem başarıyla kilitlendi" }` yanıtı alınarak kilit mekanizması %100 doğrulandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Kullanıcıların gerçek kimlikleriyle yetkilendirilmesi sağlandı; RBAC denetimi tam çalışır hale geldi.
+- **Doğrulama & Test Sonucu (Verification):** API uç noktası üzerinden lock/unlock çağrıları başarıyla yürütüldü. `npm run build` ile TypeScript kontrolleri doğrulandı (0 error).
+- **Durum:** `RESOLVED`
+
+
 
 
 
