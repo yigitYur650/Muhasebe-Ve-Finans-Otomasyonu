@@ -85,14 +85,23 @@ func (s *DefaultPeriodService) GetPeriodSummary(ctx context.Context, periodID uu
 }
 
 func (s *DefaultPeriodService) ListPeriods(ctx context.Context, tenantID uuid.UUID) ([]domain.Period, error) {
-	latest, err := s.periodRepo.GetLatestByTenant(ctx, tenantID)
-	if err != nil && err != domain.ErrNotFound {
+	history, err := s.periodRepo.GetPeriodHistory(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	if latest != nil {
-		return []domain.Period{*latest}, nil
+	periods := make([]domain.Period, len(history))
+	for i, h := range history {
+		periods[i] = domain.Period{
+			ID:              h.PeriodID,
+			TenantID:        tenantID,
+			Label:           h.Label,
+			StartingBalance: h.StartingBalance,
+			Status:          h.Status,
+			OpenedAt:        h.OpenedAt,
+			LockedAt:        h.LockedAt,
+		}
 	}
-	return []domain.Period{}, nil
+	return periods, nil
 }
 
 func (s *DefaultPeriodService) GetPeriodHistory(ctx context.Context, tenantID uuid.UUID) ([]domain.PeriodHistoryItem, error) {

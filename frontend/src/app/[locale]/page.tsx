@@ -85,6 +85,31 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     setIsMounted(true);
   }, []);
 
+  const [historyItems, setHistoryItems] = useState<PeriodHistoryItem[]>([]);
+
+  // Fetch Period History from backend API
+  const fetchPeriodHistory = async () => {
+    try {
+      const res = await apiFetch<any[]>("/periods/history");
+      if (res.success && Array.isArray(res.data)) {
+        const mappedHistory: PeriodHistoryItem[] = res.data.map((item: any) => ({
+          period_id: item.period_id,
+          label: item.label,
+          status: item.status,
+          starting_balance: item.starting_balance || "0.00",
+          total_in: item.total_in || "0.00",
+          total_out: item.total_out || "0.00",
+          closing_balance: item.closing_balance || "0.00",
+          opened_at: item.opened_at,
+          locked_at: item.locked_at,
+        }));
+        setHistoryItems(mappedHistory);
+      }
+    } catch (err) {
+      console.error("Failed to fetch period history:", err);
+    }
+  };
+
   // Fetch periods & transactions from backend API
   const fetchPeriods = async () => {
     try {
@@ -97,9 +122,12 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
           startingBalance: p.starting_balance || "0.00",
         }));
         setPeriods(mapped);
-        if (mapped[0]?.id) {
-          setSelectedPeriodId(mapped[0].id);
-        }
+        setSelectedPeriodId((prev) => {
+          if (prev && mapped.some((p) => p.id === prev)) {
+            return prev;
+          }
+          return mapped[0]?.id || prev;
+        });
       }
     } catch {
       // Fallback to default state
@@ -108,7 +136,14 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   useEffect(() => {
     fetchPeriods();
+    fetchPeriodHistory();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchPeriodHistory();
+    }
+  }, [activeTab]);
 
   // Fetch Live Summary & Transactions from Backend API
   const fetchLiveData = async () => {
@@ -216,20 +251,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   const kpiSummaryData: PeriodSummaryData = liveSummary || localCalculatedSummary;
 
-  // Period History Items
-  const historyItems: PeriodHistoryItem[] = useMemo(() => {
-    return periods.map((p) => ({
-      period_id: p.id,
-      label: p.label,
-      status: p.status,
-      starting_balance: p.startingBalance,
-      total_in: "0",
-      total_out: "0",
-      closing_balance: p.startingBalance,
-      opened_at: "2026-08-01",
-      locked_at: p.status === "locked" ? "2026-08-01 23:59" : null,
-    }));
-  }, [periods]);
+
 
   // Handler: Create Transaction
   const handleCreateTransaction = async (data: {
@@ -360,6 +382,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         headers: { "Idempotency-Key": idempotencyKey },
       });
       fetchPeriods();
+      fetchPeriodHistory();
     } catch {
       // Local state is preserved
     }
@@ -377,6 +400,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         headers: { "Idempotency-Key": crypto.randomUUID() },
       });
       fetchPeriods();
+      fetchPeriodHistory();
       fetchLiveData();
     } catch {
       // Local state is preserved
@@ -404,6 +428,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         setPeriods((prev) => [newPeriod, ...prev.filter((p) => p.id !== created.id)]);
         setSelectedPeriodId(created.id);
         fetchPeriods();
+        fetchPeriodHistory();
         return;
       } else {
         alert(res.error?.message || "Yeni dönem açılamadı.");
