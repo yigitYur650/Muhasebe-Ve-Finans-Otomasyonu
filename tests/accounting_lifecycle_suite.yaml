@@ -1,0 +1,166 @@
+# ==============================================================================
+# 📊 MUHASEBE & FİNANS OTOMASYONU - KAPSAMLI TEST SENARYOLARI (YAML)
+# ==============================================================================
+# Bu dosya gelir, gider, ters kayıt/iptal, mükerrer işlem engeli,
+# kuruşu kuruşuna bakiye sağlama ve dönem kilitleme test adımlarını tanımlar.
+# ==============================================================================
+
+suite_info:
+  title: "Tam Kapsamlı Muhasebe Yaşam Döngüsü & Kilit Doğrulama Testi"
+  target_url: "http://localhost:8080/api/v1"
+  default_tenant_id: "00000000-0000-0000-0000-000000000001"
+  default_user_id: "00000000-0000-0000-0000-000000000002"
+  default_role: "admin"
+  period_id: "00000000-0000-0000-0000-000000000001"
+  period_label: "2026-08"
+
+# ------------------------------------------------------------------------------
+# 1. AŞAMA: AÇIK DÖNEMDE GELİR VE GİDER İŞLEMLERİ
+# ------------------------------------------------------------------------------
+transactions_phase_1:
+  - id_alias: "tx_gelir_1"
+    name: "EFT Satış Faturası Tahsilatı"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "in"
+    channel: "eft"
+    amount: "15450.75"
+    description: "Müşteri A.Ş. Ağustos Ayı Yazılım Hizmet Bedeli Tahsilatı"
+    expected_status: 201
+
+  - id_alias: "tx_gelir_2"
+    name: "Mağaza Günlük Nakit Satış"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "in"
+    channel: "nakit"
+    amount: "3200.50"
+    description: "Gün Sonu Mağaza Kasa Girişi"
+    expected_status: 201
+
+  - id_alias: "tx_gelir_3"
+    name: "POS Kredi Kartı Çekimi"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "in"
+    channel: "kredi_karti"
+    amount: "7850.00"
+    description: "E-Ticaret Sanal POS Satış Hasılatı"
+    expected_status: 201
+
+  - id_alias: "tx_gider_1"
+    name: "Ofis Kirası Ödemesi"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "out"
+    channel: "eft"
+    amount: "6500.00"
+    description: "Merkez Ofis Ağustos 2026 Kira Bedeli"
+    expected_status: 201
+
+  - id_alias: "tx_gider_2"
+    name: "Bulut Sunucu ve Altyapı Lisansı"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "out"
+    channel: "kredi_karti"
+    amount: "1250.25"
+    description: "AWS & Supabase Bulut Veritabanı Barındırma Gideri"
+    expected_status: 201
+
+  - id_alias: "tx_gider_3"
+    name: "Kırtasiye ve Mutfak Masrafı"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "out"
+    channel: "nakit"
+    amount: "450.50"
+    description: "Ofis Sarf Malzemeleri ve Personel İkram Gideri"
+    expected_status: 201
+
+# ------------------------------------------------------------------------------
+# 2. AŞAMA: HATALI İŞLEM & TERS KAYIT (REVERSAL) DENETİMİ
+# ------------------------------------------------------------------------------
+reversal_phase_2:
+  - id_alias: "tx_hatali_kayit"
+    name: "Sehven Girilen Hatalı Masraf"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "out"
+    channel: "nakit"
+    amount: "2000.00"
+    description: "[HATALI KAYIT] Sehven çift girilen avans masrafı"
+    expected_status: 201
+
+  - name: "Ters Kayıt (Reversal) ile İptal Etme"
+    endpoint: "/transactions/{tx_hatali_kayit}/reverse"
+    method: "POST"
+    payload:
+      reason: "Hatalı çift mükerrer kayıt düzeltmesi"
+    expected_status: 200
+    expected_effect: "Bu işlem 2.000 TL ters kayıt üreterek net bakiyeyi 0 TL'ye eşitler."
+
+  - name: "Mükerrer Ters Kayıt Yasağı Testi"
+    endpoint: "/transactions/{tx_hatali_kayit}/reverse"
+    method: "POST"
+    payload:
+      reason: "İkinci kez iptal denemesi"
+    expected_status: 409
+    expected_error_code: "TRANSACTION_ALREADY_REVERSED"
+    expected_effect: "Zaten iptal edilmiş işlem tekrar iptal edilemez."
+
+# ------------------------------------------------------------------------------
+# 3. AŞAMA: MATEMATİKSEL KASA & KEPENK BAKİYESİ SAĞLAMASI
+# ------------------------------------------------------------------------------
+expected_kpi_balance_verification:
+  endpoint: "/periods/{period_id}/summary"
+  method: "GET"
+  expected_starting_balance: "0.00"
+  expected_total_in: "26501.25"   # 15450.75 + 3200.50 + 7850.00
+  expected_total_out: "8200.75"   # 6500.00 + 1250.25 + 450.50 (2000 TL iptal nötrlendi)
+  expected_closing_balance: "18300.50" # 26501.25 - 8200.75
+
+# ------------------------------------------------------------------------------
+# 4. AŞAMA: KULLANICI DÖNEMİ KİLİTLEDİĞİNDE (LOCK CHECKPOINT)
+# ------------------------------------------------------------------------------
+lock_checkpoint_phase_4:
+  name: "Dönemi Kilitleme İşlemi"
+  endpoint: "/periods/{period_id}/lock"
+  method: "POST"
+  expected_status: 200
+  new_status: "locked"
+
+# ------------------------------------------------------------------------------
+# 5. AŞAMA: KİLİTLİ DÖNEME MÜDAHALE & IMMUTABILITY TESTİ (HTTP 422)
+# ------------------------------------------------------------------------------
+locked_period_enforcement_phase_5:
+  - name: "Kilitli Döneme Yeni Gelir/Gider Ekleme Yasağı"
+    endpoint: "/transactions"
+    method: "POST"
+    direction: "in"
+    channel: "eft"
+    amount: "100.00"
+    description: "Kilitli döneme kaçak kayıt denemesi"
+    expected_status: 422
+    expected_error_code: "PERIOD_LOCKED"
+    expected_message: "dönem kilitli olduğu için işlem yapılamaz"
+
+  - name: "Kilitli Dönemde Ters Kayıt / İptal Yasağı"
+    endpoint: "/transactions/{tx_gelir_1}/reverse"
+    method: "POST"
+    payload:
+      reason: "Kilitli dönemdeki işlemi iptal etme denemesi"
+    expected_status: 422
+    expected_error_code: "PERIOD_LOCKED"
+
+# ------------------------------------------------------------------------------
+# 6. AŞAMA: YENİ DÖNEM DEVİR & AÇILIŞ BAKİYESİ AKTARIMI (ROLLOVER)
+# ------------------------------------------------------------------------------
+rollover_phase_6:
+  name: "Yeni Dönem Açma (open-next)"
+  endpoint: "/periods/open-next"
+  method: "POST"
+  payload:
+    label: "2026-09"
+  expected_status: 201
+  expected_new_starting_balance: "18300.50" # Önceki dönemin kapanış bakiyesi
