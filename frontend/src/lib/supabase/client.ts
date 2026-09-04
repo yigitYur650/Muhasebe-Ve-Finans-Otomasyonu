@@ -6,3 +6,13 @@ export function createClient() {
 
   return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
+
+// Browser singleton client instance for convenient client-side access
+let browserClient: ReturnType<typeof createClient> | null = null;
+
+export function getSupabaseBrowserClient() {
+  if (!browserClient) {
+    browserClient = createClient();
+  }
+  return browserClient;
+}
