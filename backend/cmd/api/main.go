@@ -7,7 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"deftersystem/backend/internal/domain"
 	"deftersystem/backend/internal/handler"
 	"deftersystem/backend/internal/repository"
 	"deftersystem/backend/internal/service"
@@ -28,30 +27,15 @@ func main() {
 	log.Printf("Connecting to live PostgreSQL database...")
 	pool, err := repository.NewPostgresPool(dbURL)
 	if err != nil {
-		log.Printf("Warning: Failed to connect to PostgreSQL: %v", err)
-		log.Println("Starting API server in standalone mode...")
-	} else {
-		defer pool.Close()
-		log.Println("Successfully connected to PostgreSQL database pool!")
+		log.Fatalf("FATAL: PostgreSQL bağlantısı kurulamadı, veri kaybını önlemek için sunucu durduruldu: %v", err)
 	}
+	defer pool.Close()
+	log.Println("Successfully connected to PostgreSQL database pool!")
 
-	var periodRepo domain.PeriodRepository
-	var txRepo domain.TransactionRepository
-	var tenantRepo domain.TenantRepository
-	var idemRepo domain.IdempotencyRepository
-
-	if pool != nil {
-		periodRepo = repository.NewPostgresPeriodRepository(pool)
-		txRepo = repository.NewPostgresTransactionRepository(pool)
-		tenantRepo = repository.NewPostgresTenantRepository(pool)
-		idemRepo = repository.NewPostgresIdempotencyRepository(pool)
-	} else {
-		log.Println("PostgreSQL connection unavailable; initializing in-memory fallback repositories.")
-		periodRepo = repository.NewMockPeriodRepo()
-		txRepo = repository.NewMockTransactionRepo()
-		tenantRepo = repository.NewMockTenantRepo()
-		idemRepo = repository.NewMockIdemRepo()
-	}
+	periodRepo := repository.NewPostgresPeriodRepository(pool)
+	txRepo := repository.NewPostgresTransactionRepository(pool)
+	tenantRepo := repository.NewPostgresTenantRepository(pool)
+	idemRepo := repository.NewPostgresIdempotencyRepository(pool)
 
 	periodSvc := service.NewPeriodService(periodRepo, tenantRepo, txRepo)
 	txSvc := service.NewTransactionService(txRepo, periodRepo)
