@@ -17,8 +17,10 @@
 │   │   │   └── main.go          # Otomatik Supabase veritabanı migration aracı
 │   │   ├── /dbcheck
 │   │   │   └── main.go          # Supabase havuz & DNS bağlantı kontrol aracı
-│   │   └── /reset
-│   │       └── main.go          # Test ve teslimat veritabanı sıfırlama aracı
+│   │   ├── /reset
+│   │   │   └── main.go          # Test ve teslimat veritabanı sıfırlama aracı
+│   │   └── /run_yaml_tests
+│   │       └── main.go          # YAML tabanlı canlı muhasebe yaşam döngüsü test koşucusu
 │   ├── /internal
 │   │   ├── /domain              # Entity struct'ları, custom error'lar, repository/service interfaceleri & unit testleri
 │   │   ├── /repository          # PostgreSQL pgxpool erişim katmanı, error mapping & unit testleri
@@ -85,9 +87,11 @@
 ## 2. Dokümantasyon İndeksi (`/docs`)
 
 - **`docs/PROJECT_BRIEF.md`**: Problem tanımı, tech stack (Next.js 15, Go Fiber v2, Supabase PostgreSQL), mimari kararlar (append-only ledger + period lock), dönem devir kuralları ve hard rules.
-- **`docs/TASK.md`**: Sprint 0 - Sprint 8 arası tüm iş paketlerinin durumları.
+- **`docs/TASK.md`**: Sprint 0 - Sprint 9 arası tüm iş paketlerinin durumları.
 - **`docs/BUG_AND_FIX.md`**: Karşılaşılan hataların kök neden analizi, uygulanan düzeltmeler ve test doğrulama çıktıları.
 - **`docs/SECURITY_AUDIT_REPORT.md`**: Güvenlik denetim sonuçları ve P0-P3 güvenlik açıkları takip raporu.
+- **`docs/RELEASE_NOTES.md`**: Sürüm sürüm özellik ve test metrikleri.
+- **`docs/TEST_SCENARIOS_AND_QA.md`**: Son kullanıcıya hatasız teslimat için canlı QA test senaryoları ve doğrulama kontrol listesi.
 - **`docs/PROJECT_MAP_FOR_LLM.md`**: Projenin dosya indeksi ve modül haritası.
 
 ---

@@ -56,15 +56,12 @@ func (r *PostgresPeriodRepository) GetLatestByTenant(ctx context.Context, tenant
 }
 
 func (r *PostgresPeriodRepository) OpenNextPeriod(ctx context.Context, tenantID uuid.UUID, label string) (*domain.Period, error) {
-	query := `SELECT id, tenant_id, label, starting_balance, status, opened_at, locked_at FROM public.open_next_period($1, $2)`
-	var p domain.Period
-	err := r.pool.QueryRow(ctx, query, tenantID, label).Scan(
-		&p.ID, &p.TenantID, &p.Label, &p.StartingBalance, &p.Status, &p.OpenedAt, &p.LockedAt,
-	)
+	var newID uuid.UUID
+	err := r.pool.QueryRow(ctx, `SELECT public.open_next_period($1, $2)`, tenantID, label).Scan(&newID)
 	if err != nil {
 		return nil, MapSQLError(err)
 	}
-	return &p, nil
+	return r.GetByID(ctx, newID)
 }
 
 func (r *PostgresPeriodRepository) Create(ctx context.Context, period *domain.Period) error {

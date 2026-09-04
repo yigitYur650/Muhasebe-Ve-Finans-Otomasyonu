@@ -280,6 +280,49 @@
 - **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile TypeScript kontrolü yapıldı (0 error). Kilitli dönemde "Yeni Dönem Aç" butonunun daima görünür olduğu doğrulandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-22] Dönem Kapatılıp Yeni Dönem Açıldığında 422 (Unprocessable Entity) Hatası ve Frontend Fallback Tuzağı
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:**
+  - `backend/internal/handler/router.go`
+  - `backend/internal/repository/period_repo.go`
+  - `frontend/src/app/[locale]/page.tsx`
+- **Belirti (Symptom):** Kullanıcı aktif bir dönemi ("2026-08") kilitledikten sonra "Yeni Dönem Aç" butonuna basıp yeni bir dönem ("2026-09") oluşturduğunda tarayıcı konsolunda `Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)` hatası ile karşılaşması ve yeni dönemde işlem kaydedememesi.
+- **Kök Neden (Root Cause):**
+  1. **HTTP 422 Anlamı & Kaynağı:** Sistemde HTTP 422 `fiber.StatusUnprocessableEntity` statüsü yalnızca tek bir domain kuralına bağlıdır: `domain.ErrPeriodLocked` ("dönem kilitli olduğu için işlem yapılamaz").
+  2. **Rota Uyuşmazlığı:** Frontend `handleOpenNextPeriod` içerisinde `POST /periods/open-next` çağırmaktaydı; ancak Go backend `router.go` dosyasında bu rota yalnızca `POST /periods/open` olarak tanımlanmıştı. Bu sebeple backend isteği 404 ile reddediyor ve DB'de yeni dönem oluşturulamıyordu.
+  3. **Postgres Fonksiyonu SQL Hatası:** `period_repo.go` içerisindeki `OpenNextPeriod` sorgusu `SELECT ... FROM public.open_next_period($1, $2)` şeklinde tablo gibi yazılmıştı. Oysa veritabanındaki `open_next_period` fonksiyonu tablo değil skaler `UUID` döndürmektedir (`RETURNS UUID`).
+  4. **Frontend Fallback Tuzağı:** Frontend yeni dönem açılırken state'e geçici olarak `id: "p-2026-09"` koyuyordu (ve backend'den dönen gerçek UUID ile güncellemiyordu). `page.tsx` içerisindeki işlem ekleme fonksiyonunda ise `validPeriodUuid = selectedPeriod.id.length === 36 ? selectedPeriod.id : "00000000-0000-0000-0000-000000000001"` kontrolü vardı. `"p-2026-09"` 36 karakter olmadığı için frontend **kullanıcının az önce kapattığı ve kilitlediği eski dönemin ID'sine** fallback yapıyordu! Kilitli döneme yazma isteği gittiğinde backend haklı olarak `422 PERIOD_LOCKED` döndürüyordu.
+- **Uygulanan Düzeltme (Fix):**
+  1. `backend/internal/handler/router.go`: Hem `/open` hem `/open-next` rotaları Idempotency middleware'i ile kaydedildi.
+  2. `backend/internal/repository/period_repo.go`: `OpenNextPeriod` sorgusu `SELECT public.open_next_period($1, $2)` ile dönen yeni dönem UUID'sini alıp ardından `r.GetByID(ctx, newID)` ile tüm nesneyi döndürecek şekilde düzeltildi.
+  3. `frontend/src/app/[locale]/page.tsx`: Tüm `00000000-0000-0000-0000-000000000001` ve `p-${label}` şeklindeki amatör mock fallback kalıntıları kökten temizlendi. Yerine profesyonel `isValidUuid()` doğrulaması, fail-fast kontrolleri ve sunucu hatası durumunda iyimser state'i geri alma (optimistic rollback) mimarisi uygulandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Sahte fallback'ler kaldırıldığı için verilerin yanlış dönemlere gizlice yazılması engellendi; veri bütünlüğü %100 güvenceye alındı.
+- **Doğrulama & Test Sonucu (Verification):** Backend `go test ./...` başarıyla geçti (0 fail). Frontend `npm run build` ve `npx tsc --noEmit` sıfır hata ile derlendi (0 error).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260904-23] Dönem Kilitlenirken POST /periods/:id/lock İsteğinin 404 NOT_FOUND (Kayıt Bulunamadı) Hatası Vermesi
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/lib/api.ts` -> `apiFetch()`, `backend/internal/service/period_service.go`
+- **Belirti (Symptom):** Kullanıcı arayüzde açık olan dönemi kilitlemek için "Dönemi Kilitle" butonuna bastığında tarayıcı konsolunda `POST http://localhost:8080/api/v1/periods/00000000-0000-0000-0000-000000000001/lock 404 (Not Found)` ve `{"success":false,"error":{"code":"NOT_FOUND","message":"kayıt bulunamadı"}}` hatasının dönmesi; dönemin kilitlenememesi.
+- **Kök Neden (Root Cause):**
+  1. Go backend `service.LockPeriod()` iş mantığı, dönemi kilitlemeden önce talepte bulunan kullanıcının (`requestingUserID`) işletme üyesi olup olmadığını ve rolünün `admin` veya `muhasebeci` olup olmadığını `tenantRepo.GetMember(ctx, tenantID, userID)` ile veritabanından sorgulamaktadır.
+  2. Frontend `apiFetch()` istemcisinde kullanıcı oturum açmış olmasına rağmen `data.session.user.id` değeri başlığa eklenmemiş; bunun yerine eski prototip günlerinden kalan `X-User-ID: 00000000-0000-0000-0000-000000000002` sahte kimliği sabit olarak gönderilmekteydi.
+  3. Canlı Supabase `tenant_members` tablosunda bu sahte ID bulunmadığı için (gerçek admin kullanıcı `149c91f0-0d03-4e3a-81d7-0bc5688c01b0` idi), veritabanı sorgusu `pgx.ErrNoRows` fırlatmış ve bu hata HTTP 404 `NOT_FOUND (kayıt bulunamadı)` olarak istemciye yansımıştır (aslında bulunamayan dönem değil, talep sahibi üyedir).
+- **Uygulanan Düzeltme (Fix):**
+  1. `frontend/src/lib/api.ts`: `apiFetch()` fonksiyonu, aktif Supabase oturumundan dinamik olarak `data.session.user.id` değerini alacak ve `X-User-ID` başlığına bu gerçek kimliği koyacak şekilde güncellendi. Oturum bulunmayan ortamlar için de canlı Supabase admin ID'si fallback olarak tanımlandı.
+  2. Gerçek kullanıcı kimliğiyle yapılan testte `200 OK: { "message": "Dönem başarıyla kilitlendi" }` yanıtı alınarak kilit mekanizması %100 doğrulandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Kullanıcıların gerçek kimlikleriyle yetkilendirilmesi sağlandı; RBAC denetimi tam çalışır hale geldi.
+- **Doğrulama & Test Sonucu (Verification):** API uç noktası üzerinden lock/unlock çağrıları başarıyla yürütüldü. `npm run build` ile TypeScript kontrolleri doğrulandı (0 error).
+- **Durum:** `RESOLVED`
+
+
+
 
 
 

@@ -9,49 +9,32 @@ import (
 )
 
 func main() {
-	regions := []string{
-		"aws-0-eu-central-1",
-		"aws-0-eu-west-1",
-		"aws-0-eu-west-2",
-		"aws-0-eu-west-3",
-		"aws-0-eu-north-1",
-		"aws-0-us-east-1",
-		"aws-0-us-east-2",
-		"aws-0-us-west-1",
-		"aws-0-us-west-2",
-		"aws-0-sa-east-1",
-		"aws-0-ap-southeast-1",
-		"aws-0-ap-northeast-1",
-		"aws-0-ap-south-1",
+	urls := []string{
+		"postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require",
+		"postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require",
 	}
 
-	for _, region := range regions {
-		dbURL := fmt.Sprintf("postgres://postgres.lvsngrrdzjhbawhcuzqz:sbV2onta8NRIWtwj@%s.pooler.supabase.com:6543/postgres?sslmode=require", region)
-		fmt.Printf("Testing region %s...\n", region)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	for _, dbURL := range urls {
+		fmt.Printf("Testing connection: %s\n", dbURL)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		pool, err := pgxpool.New(ctx, dbURL)
 		if err != nil {
+			fmt.Printf("  Pool init error: %v\n", err)
 			cancel()
 			continue
 		}
 
 		err = pool.Ping(ctx)
+		if err != nil {
+			fmt.Printf("  Ping error: %v\n", err)
+		} else {
+			fmt.Printf("  🎉 SUCCESS! Connected successfully!\n")
+			var count int
+			_ = pool.QueryRow(ctx, "SELECT count(*) FROM public.periods").Scan(&count)
+			fmt.Printf("  Periods count in Supabase: %d\n", count)
+		}
 		pool.Close()
 		cancel()
-
-		if err != nil {
-			errStr := err.Error()
-			if !contains(errStr, "ENOTFOUND") && !contains(errStr, "no such host") && !contains(errStr, "deadline exceeded") {
-				fmt.Printf("🎉 REGION MATCH OR DIFFERENT ERROR on %s: %v\n", region, err)
-			} else {
-				fmt.Printf("   Not %s (%v)\n", region, errStr)
-			}
-		} else {
-			fmt.Printf("🎉🎉🎉 SUCCESS! MATCHED REGION: %s\n", region)
-			fmt.Printf("Full Connection String: %s\n", dbURL)
-			return
-		}
 	}
 }
 
