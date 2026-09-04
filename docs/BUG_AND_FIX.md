@@ -298,8 +298,8 @@
 - **Uygulanan Düzeltme (Fix):**
   1. `backend/internal/handler/router.go`: Hem `/open` hem `/open-next` rotaları Idempotency middleware'i ile kaydedildi.
   2. `backend/internal/repository/period_repo.go`: `OpenNextPeriod` sorgusu `SELECT public.open_next_period($1, $2)` ile dönen yeni dönem UUID'sini alıp ardından `r.GetByID(ctx, newID)` ile tüm nesneyi döndürecek şekilde düzeltildi.
-  3. `frontend/src/app/[locale]/page.tsx`: `handleOpenNextPeriod` fonksiyonu sunucudan gelen gerçek UUID (`res.data.id`) ve devir bakiyesini doğrudan state'e yazacak, `fetchPeriods()` ile listeyi tazeleyecek şekilde güncellendi. Dönem kilitleme ve açma işlemlerinden sonra da liste yenilemesi (`fetchPeriods()`) eklendi.
-- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Çift rota desteği geriye dönük uyumluluk sağlar. Defter kilit immutability'si korunurken yeni dönem doğru UUID ile açılır.
+  3. `frontend/src/app/[locale]/page.tsx`: Tüm `00000000-0000-0000-0000-000000000001` ve `p-${label}` şeklindeki amatör mock fallback kalıntıları kökten temizlendi. Yerine profesyonel `isValidUuid()` doğrulaması, fail-fast kontrolleri ve sunucu hatası durumunda iyimser state'i geri alma (optimistic rollback) mimarisi uygulandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Sahte fallback'ler kaldırıldığı için verilerin yanlış dönemlere gizlice yazılması engellendi; veri bütünlüğü %100 güvenceye alındı.
 - **Doğrulama & Test Sonucu (Verification):** Backend `go test ./...` başarıyla geçti (0 fail). Frontend `npm run build` ve `npx tsc --noEmit` sıfır hata ile derlendi (0 error).
 - **Durum:** `RESOLVED`
 

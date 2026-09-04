@@ -27,6 +27,13 @@ import {
   Upload,
 } from "lucide-react";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(id?: string | null): boolean {
+  if (!id) return false;
+  return UUID_REGEX.test(id);
+}
+
 export default function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = use(params);
   const tCommon = useTranslations("common");
@@ -105,20 +112,16 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   // Fetch Live Summary & Transactions from Backend API
   const fetchLiveData = async () => {
-    if (!selectedPeriodId) return;
-    const periodUuid =
-      selectedPeriodId.length === 36
-        ? selectedPeriodId
-        : "00000000-0000-0000-0000-000000000001";
+    if (!isValidUuid(selectedPeriodId)) return;
 
     setLoadingSummary(true);
     try {
-      const res = await apiFetch<PeriodSummaryData>(`/periods/${periodUuid}/summary`);
+      const res = await apiFetch<PeriodSummaryData>(`/periods/${selectedPeriodId}/summary`);
       if (res.success && res.data) {
         setLiveSummary(res.data);
       }
 
-      const txRes = await apiFetch<any[]>(`/periods/${periodUuid}/transactions`);
+      const txRes = await apiFetch<any[]>(`/periods/${selectedPeriodId}/transactions`);
       if (txRes.success && Array.isArray(txRes.data)) {
         const idMap = new Map<string, any>();
         txRes.data.forEach((tx: any) => idMap.set(tx.id, tx));
@@ -236,16 +239,22 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
     description: string;
     idempotencyKey: string;
   }) => {
-    const validPeriodUuid =
-      selectedPeriod?.id && selectedPeriod.id.length === 36
-        ? selectedPeriod.id
-        : "00000000-0000-0000-0000-000000000001";
+    if (!selectedPeriod || !isValidUuid(selectedPeriod.id)) {
+      alert("Lütfen önce geçerli bir mali dönem seçin.");
+      return;
+    }
 
+    if (selectedPeriod.status === "locked") {
+      alert("Kilitli döneme yeni işlem eklenemez.");
+      return;
+    }
+
+    const currentPeriodId = selectedPeriod.id;
     const tempUuid = crypto.randomUUID();
 
     const newTx: TransactionItem = {
       id: tempUuid,
-      periodId: validPeriodUuid,
+      periodId: currentPeriodId,
       direction: data.direction,
       channel: data.channel,
       amount: data.amount,
@@ -262,7 +271,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         method: "POST",
         headers: { "Idempotency-Key": data.idempotencyKey },
         body: JSON.stringify({
-          period_id: validPeriodUuid,
+          period_id: currentPeriodId,
           direction: data.direction,
           channel: data.channel,
           amount: data.amount,
@@ -276,9 +285,15 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
           prev.map((t) => (t.id === tempUuid ? { ...t, id: realId } : t))
         );
         fetchLiveData();
+      } else {
+        // Rollback optimistic state if backend rejected
+        setTransactions((prev) => prev.filter((t) => t.id !== tempUuid));
+        alert(res.error?.message || "İşlem kaydedilemedi.");
       }
     } catch (err) {
       console.error("Failed to post transaction to backend:", err);
+      setTransactions((prev) => prev.filter((t) => t.id !== tempUuid));
+      alert("Sunucuya bağlanılamadı. İşlem kaydedilemedi.");
     }
   };
 
@@ -314,9 +329,22 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
       });
       if (res.success && res.data?.id) {
         fetchLiveData();
+      } else {
+        // Rollback optimistic reversal state if backend rejected
+        setTransactions((prev) =>
+          prev
+            .filter((t) => t.id !== reversalTxId)
+            .map((t) => (t.id === targetTxId ? { ...t, reversedBy: null } : t))
+        );
+        alert(res.error?.message || "İptal/Ters kayıt işlemi gerçekleştirilemedi.");
       }
-    } catch {
-      // Local state is preserved
+    } catch (err) {
+      setTransactions((prev) =>
+        prev
+          .filter((t) => t.id !== reversalTxId)
+          .map((t) => (t.id === targetTxId ? { ...t, reversedBy: null } : t))
+      );
+      alert("Sunucuya bağlanılamadı. İptal işlemi tamamlanamadı.");
     }
   };
 
@@ -377,21 +405,13 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         setSelectedPeriodId(created.id);
         fetchPeriods();
         return;
+      } else {
+        alert(res.error?.message || "Yeni dönem açılamadı.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Dönem açma API hatası:", err);
+      alert(err?.message || "Sunucu bağlantı hatası: Yeni dönem açılamadı.");
     }
-
-    // Fallback if offline/mock
-    const fallbackId = `p-${label}`;
-    const fallbackPeriod: PeriodOption = {
-      id: fallbackId,
-      label,
-      status: "open",
-      startingBalance: kpiSummaryData.closing_balance.toString(),
-    };
-    setPeriods((prev) => [fallbackPeriod, ...prev]);
-    setSelectedPeriodId(fallbackId);
   };
 
   if (!isMounted) return null;
@@ -520,12 +540,12 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
               <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">{tTx("title")}</h3>
                 <span className="text-xs text-slate-500 font-semibold">
-                  {transactions.filter((tx) => tx.periodId === selectedPeriod.id || (selectedPeriod.label === "2026-08" && tx.periodId === "00000000-0000-0000-0000-000000000001")).length} İşlem Kaydı
+                  {transactions.filter((tx) => tx.periodId === selectedPeriod?.id).length} İşlem Kaydı
                 </span>
               </div>
 
               <TransactionTable
-                transactions={transactions.filter((tx) => tx.periodId === selectedPeriod.id || (selectedPeriod.label === "2026-08" && tx.periodId === "00000000-0000-0000-0000-000000000001"))}
+                transactions={transactions.filter((tx) => tx.periodId === selectedPeriod?.id)}
                 isPeriodLocked={periodStatus === "locked"}
                 onReverse={(tx) => {
                   setTargetTxForReverse(tx);
