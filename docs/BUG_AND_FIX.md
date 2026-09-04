@@ -280,6 +280,30 @@
 - **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile TypeScript kontrolü yapıldı (0 error). Kilitli dönemde "Yeni Dönem Aç" butonunun daima görünür olduğu doğrulandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-22] Dönem Kapatılıp Yeni Dönem Açıldığında 422 (Unprocessable Entity) Hatası ve Frontend Fallback Tuzağı
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:**
+  - `backend/internal/handler/router.go`
+  - `backend/internal/repository/period_repo.go`
+  - `frontend/src/app/[locale]/page.tsx`
+- **Belirti (Symptom):** Kullanıcı aktif bir dönemi ("2026-08") kilitledikten sonra "Yeni Dönem Aç" butonuna basıp yeni bir dönem ("2026-09") oluşturduğunda tarayıcı konsolunda `Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)` hatası ile karşılaşması ve yeni dönemde işlem kaydedememesi.
+- **Kök Neden (Root Cause):**
+  1. **HTTP 422 Anlamı & Kaynağı:** Sistemde HTTP 422 `fiber.StatusUnprocessableEntity` statüsü yalnızca tek bir domain kuralına bağlıdır: `domain.ErrPeriodLocked` ("dönem kilitli olduğu için işlem yapılamaz").
+  2. **Rota Uyuşmazlığı:** Frontend `handleOpenNextPeriod` içerisinde `POST /periods/open-next` çağırmaktaydı; ancak Go backend `router.go` dosyasında bu rota yalnızca `POST /periods/open` olarak tanımlanmıştı. Bu sebeple backend isteği 404 ile reddediyor ve DB'de yeni dönem oluşturulamıyordu.
+  3. **Postgres Fonksiyonu SQL Hatası:** `period_repo.go` içerisindeki `OpenNextPeriod` sorgusu `SELECT ... FROM public.open_next_period($1, $2)` şeklinde tablo gibi yazılmıştı. Oysa veritabanındaki `open_next_period` fonksiyonu tablo değil skaler `UUID` döndürmektedir (`RETURNS UUID`).
+  4. **Frontend Fallback Tuzağı:** Frontend yeni dönem açılırken state'e geçici olarak `id: "p-2026-09"` koyuyordu (ve backend'den dönen gerçek UUID ile güncellemiyordu). `page.tsx` içerisindeki işlem ekleme fonksiyonunda ise `validPeriodUuid = selectedPeriod.id.length === 36 ? selectedPeriod.id : "00000000-0000-0000-0000-000000000001"` kontrolü vardı. `"p-2026-09"` 36 karakter olmadığı için frontend **kullanıcının az önce kapattığı ve kilitlediği eski dönemin ID'sine** fallback yapıyordu! Kilitli döneme yazma isteği gittiğinde backend haklı olarak `422 PERIOD_LOCKED` döndürüyordu.
+- **Uygulanan Düzeltme (Fix):**
+  1. `backend/internal/handler/router.go`: Hem `/open` hem `/open-next` rotaları Idempotency middleware'i ile kaydedildi.
+  2. `backend/internal/repository/period_repo.go`: `OpenNextPeriod` sorgusu `SELECT public.open_next_period($1, $2)` ile dönen yeni dönem UUID'sini alıp ardından `r.GetByID(ctx, newID)` ile tüm nesneyi döndürecek şekilde düzeltildi.
+  3. `frontend/src/app/[locale]/page.tsx`: `handleOpenNextPeriod` fonksiyonu sunucudan gelen gerçek UUID (`res.data.id`) ve devir bakiyesini doğrudan state'e yazacak, `fetchPeriods()` ile listeyi tazeleyecek şekilde güncellendi. Dönem kilitleme ve açma işlemlerinden sonra da liste yenilemesi (`fetchPeriods()`) eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Çift rota desteği geriye dönük uyumluluk sağlar. Defter kilit immutability'si korunurken yeni dönem doğru UUID ile açılır.
+- **Doğrulama & Test Sonucu (Verification):** Backend `go test ./...` başarıyla geçti (0 fail). Frontend `npm run build` ve `npx tsc --noEmit` sıfır hata ile derlendi (0 error).
+- **Durum:** `RESOLVED`
+
+
 
 
 

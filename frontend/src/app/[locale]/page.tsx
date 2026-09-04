@@ -331,6 +331,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         method: "POST",
         headers: { "Idempotency-Key": idempotencyKey },
       });
+      fetchPeriods();
     } catch {
       // Local state is preserved
     }
@@ -347,6 +348,7 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
       });
+      fetchPeriods();
       fetchLiveData();
     } catch {
       // Local state is preserved
@@ -355,24 +357,41 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
 
   // Handler: Open Next Period
   const handleOpenNextPeriod = async (label: string, idempotencyKey: string) => {
-    const newPeriod: PeriodOption = {
-      id: `p-${label}`,
-      label,
-      status: "open",
-      startingBalance: kpiSummaryData.closing_balance.toString(),
-    };
-    setPeriods((prev) => [newPeriod, ...prev]);
-    setSelectedPeriodId(newPeriod.id);
-
     try {
-      await apiFetch(`/periods/open-next`, {
+      const res = await apiFetch<any>(`/periods/open-next`, {
         method: "POST",
         headers: { "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({ label }),
       });
-    } catch {
-      // Local state is preserved
+
+      if (res.success && res.data?.id) {
+        const created = res.data;
+        const newPeriod: PeriodOption = {
+          id: created.id,
+          label: created.label || label,
+          status: (created.status as "open" | "locked") || "open",
+          startingBalance: created.starting_balance != null ? String(created.starting_balance) : kpiSummaryData.closing_balance.toString(),
+        };
+
+        setPeriods((prev) => [newPeriod, ...prev.filter((p) => p.id !== created.id)]);
+        setSelectedPeriodId(created.id);
+        fetchPeriods();
+        return;
+      }
+    } catch (err) {
+      console.error("Dönem açma API hatası:", err);
     }
+
+    // Fallback if offline/mock
+    const fallbackId = `p-${label}`;
+    const fallbackPeriod: PeriodOption = {
+      id: fallbackId,
+      label,
+      status: "open",
+      startingBalance: kpiSummaryData.closing_balance.toString(),
+    };
+    setPeriods((prev) => [fallbackPeriod, ...prev]);
+    setSelectedPeriodId(fallbackId);
   };
 
   if (!isMounted) return null;

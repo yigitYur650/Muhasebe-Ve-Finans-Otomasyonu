@@ -61,6 +61,20 @@
 
 ---
 
+### Senaryo 1.5 — Dönem Devri (Rollover) ve Yeni Döneme Sorunsuz İşlem Ekleme
+- **Önkoşul:** Aktif dönem kilitlenmiş olmalıdır.
+- **İşlem Adımları:**
+  1. "Yeni Dönem Aç" butonuna tıklayıp yeni dönem etiketini (Örn: `2026-09`) onaylayın.
+  2. Yeni dönemin başarıyla seçildiğini ve durumunun `Açık` olduğunu doğrulayın.
+  3. Yeni döneme bir gelir veya gider işlemi ekleyin.
+- **Beklenen Sonuç (PASS):**
+  - İstek `422 (Unprocessable Entity)` almamalıdır.
+  - Frontend, eski kilitli dönemin ID'sine geri düşmemeli (fallback tuzağı engellenmeli), veritabanında açılan yeni dönemin UUID'sini kullanmalıdır.
+  - İşlem yeni döneme kuruşu kuruşuna kaydedilmelidir.
+- **Durum:** `[x]` (Düzeltildi ve doğrulandı - BUG-260904-22)
+
+---
+
 ## 2. 🔐 Kimlik Doğrulama & Kullanıcı Girişi (Auth & Security)
 
 ### Senaryo 2.1 — Yeni Kullanıcı Kaydı & Otomatik İşletme (Tenant) Eşleşmesi
