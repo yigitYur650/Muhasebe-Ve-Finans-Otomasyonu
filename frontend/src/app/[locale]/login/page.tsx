@@ -19,6 +19,7 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
   const envAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@oncuotogaz.com";
   const envAdminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "oncu123456";
 
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -26,13 +27,39 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
   const [isLoading, setIsLoading] = useState(false);
   const [isForgotOpen, setIsForgotOpen] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
     setIsLoading(true);
 
     try {
+      const supabase = createClient();
+
+      if (mode === "register") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) {
+          setErrorMsg(error.message);
+          return;
+        }
+
+        if (data.session) {
+          document.cookie = "defter_session=active; path=/; max-age=86400";
+          setSuccessMsg("Kayıt başarılı! Giriş yapılıyor...");
+          setTimeout(() => {
+            router.push(`/${locale}`);
+          }, 800);
+        } else {
+          setSuccessMsg("Hesabınız başarıyla oluşturuldu! Şimdi giriş yapabilirsiniz.");
+          setMode("login");
+        }
+        return;
+      }
+
       // 1. Env credentials match check
       const isEnvAdmin = email.trim() === envAdminEmail && password === envAdminPassword;
 
@@ -45,8 +72,7 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
         return;
       }
 
-      // 2. Try Supabase Auth
-      const supabase = createClient();
+      // 2. Try Supabase Auth Login
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -82,14 +108,14 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
             </div>
           </div>
           <CardTitle className="text-xl font-black tracking-tight text-amber-400">
-            {tAuth("loginTitle")}
+            {mode === "login" ? tAuth("loginTitle") : "Yeni Kullanıcı Kaydı"}
           </CardTitle>
           <CardDescription className="text-xs text-zinc-400 max-w-xs mx-auto">
-            {tAuth("loginDescription")}
+            {mode === "login" ? tAuth("loginDescription") : "Sisteme yeni kullanıcı olarak kayıt olmak için bilgilerinizi giriniz."}
           </CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-6">
             {errorMsg && (
               <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/60 rounded-lg border border-rose-800">
@@ -125,14 +151,16 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
                   <Lock className="w-3.5 h-3.5 text-amber-400" />
                   {tAuth("password")}
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsForgotOpen(true)}
-                  className="text-[11px] font-medium text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1"
-                >
-                  <KeyRound className="w-3 h-3" />
-                  {tAuth("forgotPassword")}
-                </button>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotOpen(true)}
+                    className="text-[11px] font-medium text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1"
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    {tAuth("forgotPassword")}
+                  </button>
+                )}
               </div>
               <Input
                 type="password"
@@ -156,10 +184,28 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
                   <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
                   {tCommon("loading")}
                 </>
-              ) : (
+              ) : mode === "login" ? (
                 tAuth("loginAction")
+              ) : (
+                "Kayıt Ol"
               )}
             </Button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "login" ? "register" : "login");
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+                className="text-xs text-amber-400 hover:text-amber-300 hover:underline"
+              >
+                {mode === "login"
+                  ? "Hesabınız yok mu? Yeni Kayıt Olun"
+                  : "Zaten hesabınız var mı? Giriş Yapın"}
+              </button>
+            </div>
           </CardFooter>
         </form>
       </Card>
