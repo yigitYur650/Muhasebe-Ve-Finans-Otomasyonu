@@ -11,43 +11,20 @@
 /deftersystem
 ├── /backend
 │   ├── /cmd
-│   │   └── /api
-│   │       └── main.go          # Fiber HTTP API sunucu giriş noktası
+│   │   ├── /api
+│   │   │   └── main.go          # Fiber HTTP API sunucu giriş noktası
+│   │   ├── /migrate
+│   │   │   └── main.go          # Otomatik Supabase veritabanı migration aracı
+│   │   ├── /dbcheck
+│   │   │   └── main.go          # Supabase havuz & DNS bağlantı kontrol aracı
+│   │   └── /reset
+│   │       └── main.go          # Test ve teslimat veritabanı sıfırlama aracı
 │   ├── /internal
 │   │   ├── /domain              # Entity struct'ları, custom error'lar, repository/service interfaceleri & unit testleri
-│   │   │   ├── tenant.go
-│   │   │   ├── period.go
-│   │   │   ├── transaction.go
-│   │   │   ├── idempotency.go
-│   │   │   ├── errors.go
-│   │   │   ├── repository.go
-│   │   │   ├── service.go
-│   │   │   └── decimal_test.go
 │   │   ├── /repository          # PostgreSQL pgxpool erişim katmanı, error mapping & unit testleri
-│   │   │   ├── postgres.go
-│   │   │   ├── errors.go
-│   │   │   ├── tenant_repo.go
-│   │   │   ├── period_repo.go
-│   │   │   ├── transaction_repo.go
-│   │   │   ├── idempotency_repo.go
-│   │   │   └── repository_test.go
 │   │   ├── /service             # İş mantığı servis katmanı & mock/unit testleri
-│   │   │   ├── period_service.go
-│   │   │   ├── transaction_service.go
-│   │   │   ├── mocks_test.go
-│   │   │   ├── period_service_test.go
 │   │   └── /handler             # Fiber HTTP Handler katmanı, DTO'lar, Middleware ve E2E testleri
-│   │       ├── dto.go
-│   │       ├── errors.go
-│   │       ├── period_handler.go
-│   │       ├── transaction_handler.go
-│   │       ├── router.go
-│   │       ├── handler_test.go
-│   │       └── /middleware
-│   │           ├── context_middleware.go
-│   │           └── idempotency_middleware.go
 │   ├── /pkg
-│   │   └── /validator           # (Yardımcı validasyon paketleri)
 │   ├── Dockerfile               # Multi-stage rootless Alpine Dockerfile (appuser 10001)
 │   ├── .env.example
 │   ├── go.mod
@@ -57,13 +34,22 @@
 │   │   ├── /app
 │   │   │   └── /[locale]
 │   │   │       ├── layout.tsx    # Next.js 15 App Router kök yerleşimi (i18n & Tailwind)
-│   │   │       └── page.tsx      # Canlı KPI bakiye paneli & işlem defteri tablosu
+│   │   │       ├── page.tsx      # Canlı KPI bakiye paneli & işlem defteri tablosu
+│   │   │       └── /login
+│   │   │           └── page.tsx  # Giriş ve yeni kullanıcı kayıt arayüzü
 │   │   ├── /components
+│   │   │   ├── /auth             # Şifre sıfırlama ve güvenlik modal bileşenleri
+│   │   │   ├── /ledger           # İşlem defteri, KPI ve dönem yönetim bileşenleri
 │   │   │   ├── /shared           # Header, PeriodBadge gibi ortak bileşenler
-│   │   │   └── /ui               # shadcn/ui temel bileşenleri (Button, Table, Card, Badge, vb.)
+│   │   │   └── /ui               # shadcn/ui temel bileşenleri
+│   │   ├── /types
+│   │   │   └── database.types.ts # Tam tip güvenlikli Supabase Database TypeScript şeması
+│   │   ├── /lib
+│   │   │   ├── /supabase         # Typed browser ve server Supabase client yardımcıları
+│   │   │   ├── api.ts            # Backend HTTP client
+│   │   │   └── decimal.ts        # decimal.js & TL formatlayıcı
 │   │   ├── /i18n                 # next-intl istemci ve sunucu konfigürasyonu
-│   │   ├── /lib                  # api.ts (Backend HTTP client), decimal.ts (decimal.js & TL format)
-│   │   └── /messages             # tr.json ve en.json i18n çeviri dosyaları (hardcoded string yasak)
+│   │   └── /messages             # tr.json ve en.json i18n çeviri sözlükleri
 │   ├── Dockerfile               # Multi-stage standalone Node.js Dockerfile (nextjs 1001)
 │   ├── .env.example
 │   ├── next.config.mjs
@@ -78,8 +64,10 @@
 │   ├── TASK.md                  # Sprint ve görev takip listesi (SSOT)
 │   ├── BUG_AND_FIX.md           # Hata kök neden ve çözüm kayıtları (SSOT)
 │   ├── SECURITY_AUDIT_REPORT.md # Güvenlik denetim bulguları ve checklist
+│   ├── RELEASE_NOTES.md         # Sürüm sürüm özellik ve test metrikleri
 │   └── PROJECT_MAP_FOR_LLM.md   # Kod dizin ve dosya haritası (Bu dosya - SSOT)
 ├── /migrations
+│   ├── 00_init_supabase_auth.sql
 │   ├── 01_create_tenants.sql
 │   ├── 02_create_tenant_members.sql
 │   ├── 03_create_current_tenant_fn.sql
@@ -108,6 +96,7 @@
 
 | Sıra | Dosya Adı | Tablo / Obje | Amaç ve Açıklama |
 |---|---|---|---|
+| 00 | `00_init_supabase_auth.sql` | `auth` Schema & Roles | Standart / Docker Postgres ortamlarında Supabase auth şeması ve rolleri (`authenticated`, `anon`). |
 | 01 | `01_create_tenants.sql` | `public.tenants` | Çoklu kiracı (tenant) id ve isim yönetimi. RLS enabled. |
 | 02 | `02_create_tenant_members.sql` | `public.tenant_members` | `auth.users` ile tenant arasında rol bazlı üyelik (`admin`, `muhasebeci`, `standart`). RLS enabled. |
 | 03 | `03_create_current_tenant_fn.sql` | `public.current_tenant_ids()` | RLS politikalarında kullanılan oturumdaki kullanıcının bağlı olduğu tenant ID kümesini dönen fonksiyon (`STABLE`, `SECURITY DEFINER`). |
@@ -117,6 +106,12 @@
 | 07 | `07_period_lock_and_append_only_triggers.sql` | `trg_prevent_transaction_update`, `trg_prevent_transaction_delete`, `trg_prevent_locked_period_insert` | `transactions` üzerinde `UPDATE`/`DELETE` işlemlerini engelleyen append-only garantisi ve `locked` döneme `INSERT` engelleyen DB trigger'ları. |
 | 08 | `08_rls_periods_and_transactions.sql` | RLS Policies & Grants | `periods` ve `transactions` tabloları için tenant bazlı `SELECT` ve `INSERT` RLS politikaları. `authenticated` rolüne açık GRANT. |
 | 09 | `09_create_idempotency_keys.sql` | `public.idempotency_keys` | Idempotency-Key middleware için tekilleştirme ve yanıt saklama tablosu (`key` PK, `tenant_id`, `response_body`). |
+| 10 | `10_create_user_security.sql` | `public.user_security` | Şifre sıfırlama için güvenlik sorusu ve bcrypt hash saklama tablosu. |
+| 11 | `11_fix_transactions_created_by_fk.sql` | `public.transactions` | Harici API ve servis çağrıları için `transactions_created_by_fkey` esnekliği. |
+| 12 | `12_fix_open_next_period.sql` | `public.open_next_period()` | Append-only defterde tüm işlemleri ve zıt yönlü ters kayıtları netleyerek devreden fonksiyon düzeltmesi. |
+| 13 | `13_auto_assign_tenant_on_signup.sql` | `on_auth_user_created` | Yeni kayıt olan kullanıcıları otomatik olarak varsayılan işletmeye (`tenant_members`) `admin` rolüyle bağlayan trigger. |
+| 99 | `99_reset_and_seed.sql` | Seed Script | Veritabanını temizleyen ve "Öncü Otogaz" ilk işletme ile ilk açık dönemi kuran script. |
+| Hepsi | `supabase_combined_schema.sql` | Full Schema & Seed | Supabase Dashboard SQL Editor üzerinden tek tıkla çalıştırılabilir konsolide şema ve tohum verisi. |
 | Test | `test_scenarios.sql` | Integration Tests | 9/9 SQL bütünlük, trigger kısıtı ve multi-tenant RLS izolasyon doğrulama scripti. |
 
 ---
@@ -126,6 +121,10 @@
 | Paket / Katman | Dosya Adı | Açıklama |
 |---|---|---|
 | `cmd/api` | `main.go` | Fiber v2 tabanlı HTTP API sunucusunu ayağa kaldıran giriş noktası. `/health` kontrol endpoint'i barındırır. |
+| `cmd/migrate` | `main.go` | `DATABASE_URL` üzerinden Supabase veritabanına otomatik migration çalıştıran CLI aracı. |
+| `cmd/dbcheck` | `main.go` | Supabase Pooler host ve port bağlantılarını doğrulayan teşhis aracı. |
+| `cmd/reset` | `main.go` | Canlı ve test veritabanını sıfırlayıp ilk tohum verilerini yükleyen araç. |
+| `cmd/verify_supabase` | `main.go` | Supabase gerçek zamanlı veri yazma ve okuma doğrulama testi. |
 | `internal/domain` | `tenant.go` | `Tenant`, `TenantMember` struct tanımları ve `Role` sabitleri (`admin`, `muhasebeci`, `standart`). |
 | `internal/domain` | `period.go` | `Period` struct tanımı, `PeriodStatus` sabitleri (`open`, `locked`) ve kilit durumu kontrol metotları. |
 | `internal/domain` | `transaction.go` | `Transaction` struct tanımı, `Direction` (`in`, `out`), `Channel` (12 işlem kanalı) sabitleri ve domain validasyonu. |
@@ -177,11 +176,10 @@
 | `app/[locale]` | `layout.tsx` | Next.js 15 App Router locale yerleşimi (`NextIntlClientProvider`, Inter font ve Tailwind CSS). |
 | `app/[locale]` | `page.tsx` | KPI bakiye kartları, dönem seçici, arşiv uyarı banner'ı, CSV dışa/içe aktar butonları ve işlem defteri tablosu. |
 
-| `app/[locale]/login` | `page.tsx` | Supabase Auth entegrasyonlu, i18n destekli (hardcoded metinsiz) kullanıcı giriş sayfası. |
+| `app/[locale]/login` | `page.tsx` | Supabase Auth entegrasyonlu, i18n destekli, hem mevcut kullanıcı girişi hem de yeni kullanıcı kayıt modunu (`supabase.auth.signUp`) barındıran portal. |
 | `components/auth` | `ForgotPasswordDialog.tsx` | Güvenlik sorusu yanıtı ile şifre sıfırlama modalı. |
 | `components/auth` | `ChangePasswordDialog.tsx` | Oturum açmış kullanıcılar için güvenlik sorusu ve şifre güncelleme modalı. |
 | `components/shared` | `Header.tsx` | Marka başlığı, tenant etiketi, rol rozeti, şifre değiştir butonu ve dil değiştirici (`tr`/`en`) üst navigasyon çubuğu. |
-
 | `components/shared` | `PeriodBadge.tsx` | Dönemin kilitli (`locked`) veya açık (`open`) olma durumunu görsel olarak sunan durum rozeti. |
 | `components/ledger` | `PeriodSelector.tsx` | Tüm açık ve kilitli geçmiş dönemleri listeleyen ve salt-okunur arşiv modunu tetikleyen Select bileşeni. |
 | `components/ledger` | `QuickEntryRow.tsx` | Excel stili klavye odaklı hızlı satır girişi barı (`Enter`, `Tab`, `G/C`, `Esc`, inline decimal validasyonu). |
@@ -195,7 +193,8 @@
 | `components/ledger` | `PeriodActionDialog.tsx` | Rol denetimli dönem kilitleme (`LockPeriod`) ve yeni dönem açma (`OpenNextPeriod`) modalı. |
 | `components/admin` | `MemberManagementDialog.tsx` | Yalnızca `admin` rolü tarafından açılabilen üye listeleme, rol değiştirme, yeni üye ekleme ve çıkarabilme modalı. |
 | `components/ui` | `button.tsx`, `input.tsx`, `card.tsx`, `badge.tsx`, `table.tsx`, `dialog.tsx`, `select.tsx` | `shadcn/ui` UI temel bileşenleri. |
-| `lib/supabase` | `client.ts`, `server.ts` | Supabase Browser ve SSR Server client yardımcıları (`@supabase/ssr`). |
+| `types` | `database.types.ts` | Supabase şemasının tam TypeScript tip karşılığı (`Database['public']['Tables']`). |
+| `lib/supabase` | `client.ts`, `server.ts`, `index.ts` | Tam tip güvenlikli (`<Database>`), singleton ve SSR uyumlu Supabase istemcileri. |
 | `lib` | `decimal.ts` | `decimal.js` ile float taşmasız parasal hesaplama metotları ve `formatTL` para formatlayıcı. |
 | `lib` | `api.ts` | Go Backend `/api/v1` rotalarına otomatik Supabase Bearer token enjeksiyonu ile erişen merkezi HTTP istemcisi. |
 | `lib` | `utils.ts` | `clsx` ve `tailwind-merge` birleştiren `cn` yardımcı metodu. |

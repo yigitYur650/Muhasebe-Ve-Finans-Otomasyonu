@@ -26,7 +26,7 @@ func main() {
 	}
 
 	for _, region := range regions {
-		dbURL := fmt.Sprintf("postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@%s.pooler.supabase.com:6543/postgres?sslmode=require", region)
+		dbURL := fmt.Sprintf("postgres://postgres.lvsngrrdzjhbawhcuzqz:sbV2onta8NRIWtwj@%s.pooler.supabase.com:6543/postgres?sslmode=require", region)
 		fmt.Printf("Testing region %s...\n", region)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
