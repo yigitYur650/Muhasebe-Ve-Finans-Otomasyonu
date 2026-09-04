@@ -432,7 +432,17 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
             {/* Export CSV Button */}
             <ExportCsvButton periodId={selectedPeriod.id} periodLabel={periodLabel} />
 
-            {periodStatus === "open" && (
+            {/* Yeni Dönem Aç Butonu (Dönem kilitli veya açık fark etmeksizin her zaman erişilebilir olmalıdır) */}
+            <Button
+              variant="outline"
+              onClick={() => setPeriodModalMode("open")}
+              className="gap-2 border-slate-300 h-9 text-xs font-semibold"
+            >
+              <Calendar className="w-4 h-4 text-primary" />
+              {tPeriod("openNextPeriod")}
+            </Button>
+
+            {periodStatus === "open" ? (
               <>
                 <Button
                   variant="outline"
@@ -444,33 +454,13 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
                 </Button>
 
                 <Button
-                  variant="outline"
-                  onClick={() => setPeriodModalMode("open")}
-                  className="gap-2 border-slate-300 h-9 text-xs font-semibold"
+                  variant="destructive"
+                  onClick={() => setPeriodModalMode("lock")}
+                  className="gap-2 h-9 text-xs font-semibold"
                 >
-                  <Calendar className="w-4 h-4 text-primary" />
-                  {tPeriod("openNextPeriod")}
+                  <Lock className="w-4 h-4" />
+                  {tPeriod("lockPeriod")}
                 </Button>
-
-                {(periodStatus as string) === "locked" ? (
-                  <Button
-                    variant="outline"
-                    onClick={handleUnlockPeriod}
-                    className="gap-2 h-9 text-xs font-semibold border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
-                  >
-                    <Unlock className="w-4 h-4 text-amber-600" />
-                    Dönem Kilidini Aç
-                  </Button>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    onClick={() => setPeriodModalMode("lock")}
-                    className="gap-2 h-9 text-xs font-semibold"
-                  >
-                    <Lock className="w-4 h-4" />
-                    {tPeriod("lockPeriod")}
-                  </Button>
-                )}
 
                 <Button
                   onClick={() => setCreateModalOpen(true)}
@@ -480,6 +470,15 @@ export default function HomePage({ params }: { params: Promise<{ locale: string 
                   {tTx("newTransaction")}
                 </Button>
               </>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={handleUnlockPeriod}
+                className="gap-2 h-9 text-xs font-semibold border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+              >
+                <Unlock className="w-4 h-4 text-amber-600" />
+                Dönem Kilidini Aç
+              </Button>
             )}
           </div>
         </div>

@@ -267,6 +267,19 @@
 - **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` çalıştırıldı (0 error). JSON sözlükleri ve tip uyumluluğu doğrulandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-21] Dönem Kilitlendiğinde Yeni Dönem Aç ve Kilit Açma Butonlarının Arayüzden Kaybolması
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx` -> Dönem Aksiyon Butonları
+- **Belirti (Symptom):** Kullanıcı açık bir dönemi kilitlediğinde (`status = 'locked'`), "Yeni Dönem Aç" butonu arayüzden kaybolduğu için bir sonraki ayın dönemini açamama ve sistemde işlem yapamama çıkmazına girmesi. Ayrıca "Dönem Kilidini Aç" butonunun da görünmemesi.
+- **Kök Neden (Root Cause):** `page.tsx` içerisinde "Yeni Dönem Aç", "Dönemi Kilitle" ve "Dönem Kilidini Aç" butonlarının tümünün yanlışlıkla `{periodStatus === 'open' && (...)}` şart bloğunun içine hapsedilmiş olması. Dönem kilitlendiğinde şart `false` olduğu için yeni dönem açma butonu ve kilit açma butonu DOM'dan tamamen kaldırılıyordu.
+- **Uygulanan Düzeltme (Fix):** 1) "Yeni Dönem Aç" (`tPeriod("openNextPeriod")`) butonu şart bloğunun dışına çıkarılarak dönem açık ya da kilitli olsun her zaman erişilebilir kılındı (muhasebe mantığı gereği dönem kilitlendikten sonra sonraki ay açılır). 2) Şart bloğu `periodStatus === 'open' ? (...) : (...)` yapısına dönüştürülerek dönem açıkken "Dönemi Kilitle", kilitliyken "Dönem Kilidini Aç" butonunun görünmesi sağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. `open_next_period` backend ve SQL fonksiyonları kilitli dönemin kapanış bakiyesini kuruşu kuruşuna sonraki döneme devretmek üzere zaten tasarlanmıştır.
+- **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile TypeScript kontrolü yapıldı (0 error). Kilitli dönemde "Yeni Dönem Aç" butonunun daima görünür olduğu doğrulandı.
+- **Durum:** `RESOLVED`
+
 
 
 
