@@ -101,6 +101,17 @@
 - [x] `RELEASE_NOTES.md` ilk sürüm için doldurulur (PASS, 2026-08-20)
 - [x] Canlıya hazır demo doğrulaması (PASS, 2026-08-20)
 
+## Sprint 9 — Supabase Canlı Kurulum, Tip Güvenliği & Otomatik Üyelik Entegrasyonu
+
+- [x] `feat/supabase-setup` branch'i açılır ve paket bağımlılıkları (`@supabase/supabase-js`, `@supabase/ssr`) kurulur (PASS, 2026-09-04)
+- [x] Git güvenlik sertleştirmesi: `.env` ve `.env.local` sır sızıntıları `.gitignore` ile engellenir, güvenli `.env.example` şablonları hazırlanır (PASS, 2026-09-04)
+- [x] Supabase SQL Editor için tekil konsolide kurulum şeması (`migrations/supabase_combined_schema.sql`) hazırlanır (PASS, 2026-09-04)
+- [x] Otomatik CLI migration aracı (`backend/cmd/migrate/main.go`) geliştirilir (PASS, 2026-09-04)
+- [x] `frontend/src/types/database.types.ts` ile tam tip güvenlikli (`Database['public']['Tables']`) TypeScript şeması oluşturulur (PASS, 2026-09-04)
+- [x] Supabase browser ve SSR server istemcilerine `<Database>` tipi bağlanır (0 type error, `npx tsc` PASS, 2026-09-04)
+- [x] Yeni kullanıcı kaydında RLS engeline takılmayı önleyen otomatik tenant bağlama trigger'ı (`migrations/13_auto_assign_tenant_on_signup.sql`) yazılır (PASS, 2026-09-04)
+- [x] Giriş ekranına (`frontend/src/app/[locale]/login/page.tsx`) "Yeni Kullanıcı Kayıt Ol" modu (`supabase.auth.signUp`) entegre edilir (PASS, 2026-09-04)
+- [x] Dokümantasyon (`PROJECT_MAP_FOR_LLM.md`, `TASK.md`, `BUG_AND_FIX.md`, `RELEASE_NOTES.md`) güncellenir (PASS, 2026-09-04)
 
 ---
 

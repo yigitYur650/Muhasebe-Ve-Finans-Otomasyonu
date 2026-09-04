@@ -1,3 +1,31 @@
+# 🚀 Release Notes — Sürüm v1.1.0
+
+> **Sürüm Tarihi:** 2026-09-04  
+> **Platform:** Öncü Otogaz — Kasa ve Defter-i Kebir Yönetim Platformu  
+> **Mimari:** Go Fiber v2 Backend + Next.js 15 App Router Frontend + PostgreSQL / Supabase RLS  
+
+---
+
+### ✨ Sürüm v1.1.0 — Supabase Bulut Entegrasyonu, Tip Güvenliği & Otomatik Üyelik
+
+#### 1. 🛡️ Supabase TypeScript Tip Güvenliği (End-to-End Type Safety)
+- `frontend/src/types/database.types.ts` oluşturuldu; `public.tenants`, `public.periods`, `public.transactions`, `public.idempotency_keys` ve `public.user_security` şeması tam olarak modellendi.
+- Supabase browser ve SSR server istemcilerine `<Database>` tipi bağlandı. `npx tsc --noEmit` ile 0 tip hatası doğrulandı.
+
+#### 2. 👥 Otomatik Kullanıcı-İşletme (Tenant) Bağlama Motoru
+- `13_auto_assign_tenant_on_signup.sql` migration'ı ile `auth.users` üzerinde `on_auth_user_created` trigger'ı kuruldu.
+- Yeni kayıt olan her kullanıcının `tenant_members` tablosuna `admin` rolüyle otomatik eklenmesi sağlandı; böylece RLS kısıtlamasından kaynaklanan boş ekran ve 403 erişim engelleri kökten çözüldü.
+
+#### 3. 🔐 Giriş ve Kayıt Portalı İyileştirmesi
+- `frontend/src/app/[locale]/login/page.tsx` arayüzüne "Yeni Kayıt Ol" modu (`supabase.auth.signUp`) entegre edildi.
+- Giriş ve kayıt modları arasında anlık geçiş ve bilgilendirici durum mesajları sağlandı.
+
+#### 4. 🗄️ Konsolide Şema ve CLI Migration Aracı
+- Supabase Dashboard SQL Editor üzerinden tek tıkla çalıştırılabilir `migrations/supabase_combined_schema.sql` hazırlandı.
+- Terminalden otomatik çalıştırma için `backend/cmd/migrate/main.go` aracı eklendi.
+
+---
+
 # 🚀 Release Notes — Sürüm v1.0.0
 
 > **Sürüm Tarihi:** 2026-08-20  

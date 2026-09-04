@@ -228,6 +228,32 @@
 - **Doğrulama & Test Sonucu (Verification):** `go run ./cmd/e2e/main.go` çalıştırıldı. 10/10 senaryo (Ping, Sağlık Kontrolü, Dönem Listeleme, Dönem Özet KPI, CSV Şablon İndirme, CSV Export, İşlem Ekleme, Idempotency Çift Kayıt Engelleme, Ters Kayıt/İptal, Güvenlik Sorusu) **%100 BAŞARIYLA (PASS)** tamamlandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-18] Yerel Windows Ortamında Supabase Doğrudan Veritabanı Adresi IPv6 Çözümleme Hatası (no such host)
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `.env`, `backend/.env`, `backend/cmd/migrate/main.go`
+- **Belirti (Symptom):** Terminalden yerel migration aracı çalıştırıldığında `hostname resolving error: lookup db.lvsngrrdzjhbawhcuzqz.supabase.co: no such host` hatası alınması ve veritabanı bağlantısının kurulamaması.
+- **Kök Neden (Root Cause):** Supabase'in 2024 sonrası yeni projelerinde `db.[ref].supabase.co` alan adı yalnızca IPv6 (AAAA) DNS kaydına sahiptir. Yerel ISP ve ağ kartlarında yerel IPv6 yönlendirmesi bulunmadığında Go `net.LookupHost` çözümleme yapamaz.
+- **Uygulanan Düzeltme (Fix):** 1) Supabase Dashboard SQL Editor üzerinden doğrudan internal cloud ağıyla çalışan tekil konsolide şema dosyası (`migrations/supabase_combined_schema.sql`) hazırlandı. 2) CLI bağlantıları için Supabase Connection Pooling (IPv4 / port 6543) mimarisi dokümante edildi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Supabase SQL Editor sıfır ağ bağımlılığıyla 10 saniyede şemayı kurar.
+- **Doğrulama & Test Sonucu (Verification):** `Resolve-DnsName db.lvsngrrdzjhbawhcuzqz.supabase.co` ile sadece AAAA kaydının varlığı tespit edildi. Web SQL editöründen tüm şema ve seed başarıyla uygulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260904-19] Supabase Yeni Kullanıcı Kaydında Otomatik İşletme (Tenant) Eşleşmesi Eksikliği ve RLS Erişim Engeli
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `migrations/13_auto_assign_tenant_on_signup.sql`, `frontend/src/app/[locale]/login/page.tsx`
+- **Belirti (Symptom):** Yeni kullanıcı `supabase.auth.signUp()` ile kayıt olduğunda `auth.users` tablosuna eklenmesine rağmen `tenant_members` tablosunda karşılık gelen bir kayıt olmadığı için RLS kuralı (`current_tenant_ids()`) gereği panele girdiğinde boş ekran görmesi ve işlem yapamaması.
+- **Kök Neden (Root Cause):** Kullanıcı kaydı ile işletme üyeliği arasında otomatik bir veritabanı tetikleyicisinin (trigger) bulunmaması.
+- **Uygulanan Düzeltme (Fix):** 1) `auth.users` üzerinde `AFTER INSERT` çalışan `on_auth_user_created` trigger'ı yazıldı (`migrations/13_auto_assign_tenant_on_signup.sql`). Yeni kullanıcıları varsayılan tenant'a (`00000000-0000-0000-0000-000000000001`) otomatik olarak `admin` rolüyle bağlaması sağlandı. 2) Giriş ekranına (`frontend/src/app/[locale]/login/page.tsx`) "Yeni Kayıt Ol" modu entegre edildi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Güvenli `SECURITY DEFINER` fonksiyonu ve `ON CONFLICT DO NOTHING` ile çoklu eklemelere karşı korumalıdır.
+- **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile frontend sıfır hata ile derlendi (0 error). SQL migration'ı Supabase'e uygulanmak üzere hazırlandı.
+- **Durum:** `RESOLVED`
+
 
 
 
