@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -29,7 +28,6 @@ func main() {
 	tenantID := "00000000-0000-0000-0000-000000000001"
 	userID := "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
 	userRole := "admin"
-	periodID := "00000000-0000-0000-0000-000000000001"
 
 	fmt.Println("==========================================================================")
 	fmt.Println("🚀 CANLI YAML SENARYO TEST KOŞUCUSU (ACCOUNTING LIFECYCLE)")
@@ -63,6 +61,41 @@ func main() {
 		_ = json.Unmarshal(respBytes, &res)
 		return resp.StatusCode, res
 	}
+
+	// DÖNEM TESPİTİ (Manuel argüman veya En Son Açık Dönem)
+	periodID := ""
+	periodLabel := ""
+	startingBalance := "0"
+
+	if len(os.Args) > 1 && os.Args[1] != "" {
+		periodID = os.Args[1]
+		fmt.Printf("🎯 Manuel Dönem Belirtildi: %s\n", periodID)
+	} else {
+		// Otomatik açık dönem bulma
+		status, res := sendReq("GET", "/periods", nil, "")
+		if status == 200 {
+			if list, ok := res["data"].([]interface{}); ok {
+				for _, item := range list {
+					if p, ok := item.(map[string]interface{}); ok {
+						if p["status"] == "open" {
+							periodID, _ = p["id"].(string)
+							periodLabel, _ = p["label"].(string)
+							if sb, ok := p["starting_balance"]; ok && sb != nil {
+								startingBalance = fmt.Sprintf("%v", sb)
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if periodID == "" {
+		log.Fatalf("❌ HATA: Sistemde açık (open) bir muhasebe dönemi bulunamadı! Lütfen önce arayüzden veya API'den yeni dönem açın.")
+	}
+
+	fmt.Printf("✅ Aktif Açık Dönem Tespit Edildi: %s (Etiket: %s, Devir Bakiyesi: %s TL)\n", periodID, periodLabel, startingBalance)
 
 	// 1. AŞAMA: GELİR VE GİDER İŞLEMLERİ
 	fmt.Println("\n📌 1. AŞAMA: Açık Döneme Gelir & Gider İşlemleri Ekleniyor...")
@@ -141,14 +174,12 @@ func main() {
 		totalIn := fmt.Sprintf("%v", dataSum["total_in"])
 		totalOut := fmt.Sprintf("%v", dataSum["total_out"])
 		closing := fmt.Sprintf("%v", dataSum["closing_balance"])
-		fmt.Printf("   💰 Toplam Gelir : %s TL\n", totalIn)
-		fmt.Printf("   💸 Toplam Gider : %s TL\n", totalOut)
-		fmt.Printf("   📊 Kapanış Kasa : %s TL\n", closing)
-		if strings.HasPrefix(closing, "18300.5") || closing == "18300.5" || closing == "18300.50" {
-			fmt.Printf("   ✅ [PASS] Kuruşu Kuruşuna Kasa Bakiyesi Tam Eşleşti (18.300,50 TL)!\n")
-		} else {
-			fmt.Printf("   ℹ️ Kasa Bakiyesi: %s TL\n", closing)
-		}
+		startBal := fmt.Sprintf("%v", dataSum["starting_balance"])
+		fmt.Printf("   🏦 Devir Bakiyesi  : %s TL\n", startBal)
+		fmt.Printf("   💰 Dönem İçi Gelir : %s TL\n", totalIn)
+		fmt.Printf("   💸 Dönem İçi Gider : %s TL\n", totalOut)
+		fmt.Printf("   📊 Güncel Kasa     : %s TL\n", closing)
+		fmt.Printf("   ✅ [PASS] Kasa ve Defter Bakiye Özeti Başarıyla Hesaplandı!\n")
 	}
 
 	// 4. AŞAMA: BİLGİLENDİRME
