@@ -20,9 +20,25 @@ func main() {
 	})
 
 	dbURL := os.Getenv("DATABASE_URL")
-	// Always use guaranteed IPv4 Supabase Pooler URL for Render compatibility
-	if dbURL == "" || strings.Contains(dbURL, "supabase") || len(dbURL) < 10 {
-		dbURL = "postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	if dbURL == "" {
+		// Try reading from .env or ../.env or backend/.env
+		data, err := os.ReadFile(".env")
+		if err != nil {
+			data, err = os.ReadFile("../.env")
+		}
+		if err != nil {
+			data, err = os.ReadFile("backend/.env")
+		}
+		if err == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "DATABASE_URL=") {
+					dbURL = strings.TrimPrefix(line, "DATABASE_URL=")
+					dbURL = strings.Trim(dbURL, `"'`)
+					break
+				}
+			}
+		}
 	}
 
 	log.Printf("Connecting to live PostgreSQL database...")

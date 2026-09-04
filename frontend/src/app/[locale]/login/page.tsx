@@ -49,12 +49,12 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
 
         if (data.session) {
           document.cookie = "defter_session=active; path=/; max-age=86400";
-          setSuccessMsg("Kayıt başarılı! Giriş yapılıyor...");
+          setSuccessMsg(tAuth("loginSuccess"));
           setTimeout(() => {
             router.push(`/${locale}`);
           }, 800);
         } else {
-          setSuccessMsg("Hesabınız başarıyla oluşturuldu! Şimdi giriş yapabilirsiniz.");
+          setSuccessMsg(tAuth("registerSuccess"));
           setMode("login");
         }
         return;
@@ -108,10 +108,10 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
             </div>
           </div>
           <CardTitle className="text-xl font-black tracking-tight text-amber-400">
-            {mode === "login" ? tAuth("loginTitle") : "Yeni Kullanıcı Kaydı"}
+            {mode === "login" ? tAuth("loginTitle") : tAuth("registerTitle")}
           </CardTitle>
           <CardDescription className="text-xs text-zinc-400 max-w-xs mx-auto">
-            {mode === "login" ? tAuth("loginDescription") : "Sisteme yeni kullanıcı olarak kayıt olmak için bilgilerinizi giriniz."}
+            {mode === "login" ? tAuth("loginDescription") : tAuth("registerDescription")}
           </CardDescription>
         </CardHeader>
 
@@ -187,7 +187,7 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
               ) : mode === "login" ? (
                 tAuth("loginAction")
               ) : (
-                "Kayıt Ol"
+                tAuth("registerAction")
               )}
             </Button>
 
@@ -202,8 +202,8 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
                 className="text-xs text-amber-400 hover:text-amber-300 hover:underline"
               >
                 {mode === "login"
-                  ? "Hesabınız yok mu? Yeni Kayıt Olun"
-                  : "Zaten hesabınız var mı? Giriş Yapın"}
+                  ? tAuth("noAccount")
+                  : tAuth("haveAccount")}
               </button>
             </div>
           </CardFooter>

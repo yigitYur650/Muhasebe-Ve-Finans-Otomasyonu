@@ -254,6 +254,32 @@
 - **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile frontend sıfır hata ile derlendi (0 error). SQL migration'ı Supabase'e uygulanmak üzere hazırlandı.
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260904-20] Supabase Auth 400 Hatasında tr.json auth.invalidCredentials Eksikliği ve IntlError Çökmesi
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/messages/tr.json`, `frontend/src/messages/en.json`, `frontend/src/app/[locale]/login/page.tsx`
+- **Belirti (Symptom):** Kullanıcı henüz kayıtlı olmayan bir hesapla veya yanlış şifreyle giriş yapmayı denediğinde konsolda `POST .../auth/v1/token?grant_type=password 400 (Bad Request)` ve hemen ardından `IntlError: MISSING_MESSAGE: Could not resolve auth.invalidCredentials in messages for locale tr.` hatasının patlaması; arayüzde kullanıcı dostu hata mesajı yerine uncaught exception oluşması.
+- **Kök Neden (Root Cause):** 1) Supabase Auth'un geçersiz oturum açma isteklerine standart HTTP 400 dönmesi. 2) `frontend/src/messages/tr.json` sözlüğünde `auth.invalidCredentials` anahtarının tanımlanmamış olması (`en.json` içinde varken `tr.json` dosyasında eksik bırakılması). 3) Giriş formundaki yeni kayıt butonlarının hardcoded metin barındırması.
+- **Uygulanan Düzeltme (Fix):** 1) `frontend/src/messages/tr.json` dosyasına `"invalidCredentials": "E-posta adresi veya şifre hatalı."` ve kayıt modu çeviri anahtarları eklendi. 2) `frontend/src/messages/en.json` dosyasına eşleşen kayıt anahtarları eklendi. 3) `login/page.tsx` içerisindeki tüm durum mesajları ve buton etiketleri `tAuth` i18n anahtarlarına bağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. `next-intl` eksik anahtar hatası vermez; kullanıcıya düzgün kırmızı uyarı kutusu gösterilir.
+- **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` çalıştırıldı (0 error). JSON sözlükleri ve tip uyumluluğu doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260904-21] Dönem Kilitlendiğinde Yeni Dönem Aç ve Kilit Açma Butonlarının Arayüzden Kaybolması
+
+- **Tarih / Sprint:** 2026-09-04 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx` -> Dönem Aksiyon Butonları
+- **Belirti (Symptom):** Kullanıcı açık bir dönemi kilitlediğinde (`status = 'locked'`), "Yeni Dönem Aç" butonu arayüzden kaybolduğu için bir sonraki ayın dönemini açamama ve sistemde işlem yapamama çıkmazına girmesi. Ayrıca "Dönem Kilidini Aç" butonunun da görünmemesi.
+- **Kök Neden (Root Cause):** `page.tsx` içerisinde "Yeni Dönem Aç", "Dönemi Kilitle" ve "Dönem Kilidini Aç" butonlarının tümünün yanlışlıkla `{periodStatus === 'open' && (...)}` şart bloğunun içine hapsedilmiş olması. Dönem kilitlendiğinde şart `false` olduğu için yeni dönem açma butonu ve kilit açma butonu DOM'dan tamamen kaldırılıyordu.
+- **Uygulanan Düzeltme (Fix):** 1) "Yeni Dönem Aç" (`tPeriod("openNextPeriod")`) butonu şart bloğunun dışına çıkarılarak dönem açık ya da kilitli olsun her zaman erişilebilir kılındı (muhasebe mantığı gereği dönem kilitlendikten sonra sonraki ay açılır). 2) Şart bloğu `periodStatus === 'open' ? (...) : (...)` yapısına dönüştürülerek dönem açıkken "Dönemi Kilitle", kilitliyken "Dönem Kilidini Aç" butonunun görünmesi sağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Yok. `open_next_period` backend ve SQL fonksiyonları kilitli dönemin kapanış bakiyesini kuruşu kuruşuna sonraki döneme devretmek üzere zaten tasarlanmıştır.
+- **Doğrulama & Test Sonucu (Verification):** `npx tsc --noEmit` ile TypeScript kontrolü yapıldı (0 error). Kilitli dönemde "Yeni Dönem Aç" butonunun daima görünür olduğu doğrulandı.
+- **Durum:** `RESOLVED`
+
 
 
 
