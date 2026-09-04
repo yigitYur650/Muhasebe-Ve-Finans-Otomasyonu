@@ -48,14 +48,18 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
     'Content-Type': 'application/json',
   };
 
-  // Automatically attach Supabase JWT access token if available
+  // Automatically attach Supabase JWT access token and logged-in user ID if available
   let token = authToken;
-  if (!token && typeof window !== 'undefined') {
+  let resolvedUserId = userId;
+  if (typeof window !== 'undefined') {
     try {
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
       if (data?.session?.access_token) {
         token = data.session.access_token;
+      }
+      if (data?.session?.user?.id && !resolvedUserId) {
+        resolvedUserId = data.session.user.id;
       }
     } catch {
       // Fallback
@@ -68,7 +72,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
 
   // Ensure default tenant and user headers exist if not explicitly provided
   defaultHeaders['X-Tenant-ID'] = tenantId || '00000000-0000-0000-0000-000000000001';
-  defaultHeaders['X-User-ID'] = userId || '00000000-0000-0000-0000-000000000002';
+  defaultHeaders['X-User-ID'] = resolvedUserId || '149c91f0-0d03-4e3a-81d7-0bc5688c01b0';
   defaultHeaders['X-User-Role'] = userRole || 'admin';
   if (idempotencyKey) defaultHeaders['Idempotency-Key'] = idempotencyKey;
 

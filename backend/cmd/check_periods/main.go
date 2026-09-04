@@ -37,4 +37,22 @@ func main() {
 		fmt.Printf("Period ID: %s | Label: %s | Status: %s\n", id, label, status)
 	}
 	fmt.Println("==========================================")
+
+	_, _ = pool.Exec(ctx, `
+		INSERT INTO public.tenant_members (tenant_id, user_id, role)
+		VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'admin')
+		ON CONFLICT (tenant_id, user_id) DO NOTHING;
+	`)
+
+	mRows, err := pool.Query(ctx, `SELECT tenant_id, user_id, role FROM public.tenant_members`)
+	if err == nil {
+		defer mRows.Close()
+		fmt.Println("👥 CANLI TENANT MEMBERS:")
+		for mRows.Next() {
+			var tID, uID, role string
+			_ = mRows.Scan(&tID, &uID, &role)
+			fmt.Printf("Tenant: %s | User: %s | Role: %s\n", tID, uID, role)
+		}
+		fmt.Println("==========================================")
+	}
 }

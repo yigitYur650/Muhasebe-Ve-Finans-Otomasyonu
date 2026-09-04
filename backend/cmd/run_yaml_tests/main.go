@@ -27,7 +27,7 @@ type StepTx struct {
 func main() {
 	baseURL := "http://localhost:8080/api/v1"
 	tenantID := "00000000-0000-0000-0000-000000000001"
-	userID := "00000000-0000-0000-0000-000000000002"
+	userID := "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
 	userRole := "admin"
 	periodID := "00000000-0000-0000-0000-000000000001"
 

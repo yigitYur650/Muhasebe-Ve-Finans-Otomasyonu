@@ -9,7 +9,7 @@ suite_info:
   title: "Tam Kapsamlı Muhasebe Yaşam Döngüsü & Kilit Doğrulama Testi"
   target_url: "http://localhost:8080/api/v1"
   default_tenant_id: "00000000-0000-0000-0000-000000000001"
-  default_user_id: "00000000-0000-0000-0000-000000000002"
+  default_user_id: "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
   default_role: "admin"
   period_id: "00000000-0000-0000-0000-000000000001"
   period_label: "2026-08"
