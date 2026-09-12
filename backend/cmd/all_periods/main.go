@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"deftersystem/backend/internal/repository"
 )
 
 func main() {
-	dbURL := "postgres://postgres.xtmfsdvwlminlchpustb:6uNlbk0wlN5TuSDZ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	}
 	pool, err := repository.NewPostgresPool(dbURL)
 	if err != nil {
 		log.Fatalf("Pool err: %v", err)
@@ -35,7 +39,12 @@ func main() {
 		var openedAt interface{}
 		var lockedAt interface{}
 		_ = rows.Scan(&id, &tenantID, &label, &startingBalance, &status, &openedAt, &lockedAt)
-		fmt.Printf("#%d | ID: %s | Label: %s | Status: '%s' | LockedAt: %v\n", count, id, label, status, lockedAt)
+		
+		var txCount int
+		_ = pool.QueryRow(ctx, "SELECT count(*) FROM public.transactions WHERE period_id = $1", id).Scan(&txCount)
+		
+		fmt.Printf("#%d | ID: %s | Label: %s | Status: '%s' | StartingBalance: %v | TxCount: %d | LockedAt: %v\n", 
+			count, id, label, status, startingBalance, txCount, lockedAt)
 	}
 	fmt.Printf("Total Periods Found: %d\n", count)
 	fmt.Println("==========================================")

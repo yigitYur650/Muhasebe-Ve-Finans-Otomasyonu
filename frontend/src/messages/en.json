@@ -37,6 +37,10 @@
     "statusOpen": "Open Period",
     "statusLocked": "Locked Period",
     "selectPeriod": "Select Period",
+    "unlockPeriod": "Unlock Period",
+    "recordsCount": "Records",
+    "ledgerView": "Transaction Ledger",
+    "newTransactionEntry": "Add Transaction",
     "archiveBanner": "This period is locked. You are viewing historical read-only records."
   },
   "transaction": {
@@ -163,7 +167,8 @@
     "inspect_ledger": "Inspect Ledger",
     "no_history": "No archived periods found yet.",
     "status_locked": "Locked (Read-Only)",
-    "status_open": "Active Period"
+    "status_open": "Active Period",
+    "actions": "Actions"
   },
   "import_export": {
     "exportCsv": "Export CSV",

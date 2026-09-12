@@ -321,13 +321,71 @@
 - **Doğrulama & Test Sonucu (Verification):** API uç noktası üzerinden lock/unlock çağrıları başarıyla yürütüldü. `npm run build` ile TypeScript kontrolleri doğrulandı (0 error).
 - **Durum:** `RESOLVED`
 
+---
 
+### [BUG-260912-24] HTTP 431 İstek Başlık Alanları Çok Büyük (Request Header Fields Too Large) Hatası
 
+- **Tarih / Sprint:** 2026-09-12 / Sprint 9
+- **Etkilenen Katman / Dosya:** `backend/cmd/api/main.go` -> `fiber.New()`
+- **Belirti (Symptom):** Kullanıcı arayüzde "Dışa Aktar" veya bazı API işlemlerine bastığında sunucudan `{"başarı":false,"hata":{"kod":"HTTP_HATASI","mesaj":"İstek Başlık Alanları Çok Büyük"}}` (HTTP 431) hatası dönmesi.
+- **Kök Neden (Root Cause):** Go Fiber v2 çerçevesi varsayılan olarak 4096 byte (4KB) header okuma tamponu (`ReadBufferSize`) kullanmaktadır. Modern tarayıcılarda Supabase Auth JWT token'ları, refresh token'lar, chunked auth çerezleri ve tenant header'ları bir araya geldiğinde HTTP header boyutu 4KB'ı aşarak Fiber tarafından sunucuya girmeden 431 ile reddedilmekteydi.
+- **Uygulanan Düzeltme (Fix):** `backend/cmd/api/main.go` içinde Fiber yapılandırmasına `ReadBufferSize: 16384` (16KB) eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. 16KB bellek tamponu modern JWT ve cookie mimarileri için standart ve güvenlidir.
+- **Doğrulama & Test Sonucu (Verification):** Uzun JWT ve header içeren istekler başarıyla 200 OK ile karşılandı.
+- **Durum:** `RESOLVED`
 
+---
 
+### [BUG-260912-25] Yeni Dönem Açarken Idempotency-Key Çakışması ve HTTP 409 (Conflict) Hatası
 
+- **Tarih / Sprint:** 2026-09-12 / Sprint 9
+- **Etkilenen Katman / Dosya:** `frontend/src/components/ledger/PeriodActionDialog.tsx`, `backend/internal/handler/middleware/idempotency_middleware.go`
+- **Belirti (Symptom):** Kullanıcı "Yeni Dönem Aç" modalını açtığında konsolda `bu Idempotency-Key daha önce kullanılmış POST /periods/open-next 409 (Conflict)` hatası alması ve yeni dönem açılamaması.
+- **Kök Neden (Root Cause):** Frontend bileşeninde `idempotencyKey` state'i bileşen ilk render edildiğinde `useState(crypto.randomUUID())` ile üretilmiş ve modal her açıldığında veya istek tekrarlandığında yenilenmemiştir. Kullanıcı daha önce başarısız bir deneme yaptıysa veya modalı kapatıp açtıysa aynı anahtar tekrar gönderilmiş ve backend idempotency tablosundaki tekillik kuralı gereği 409 fırlatmıştır.
+- **Uygulanan Düzeltme (Fix):** `PeriodActionDialog.tsx` içerisinde modal her açıldığında ve submit işlemi tetiklendiğinde taze `crypto.randomUUID()` üretilmesi sağlandı; backend yanıtı başarılı veya başarısız olsun anahtar yenilendi.
+- **Yan Etki & Risk Analizi (Risk):** Yok. Mükerrer istek koruması tam olarak korundu.
+- **Doğrulama & Test Sonucu (Verification):** Arka arkaya yeni dönem açma ve modal kapatıp açma senaryolarında 409 hatasının ortadan kalktığı doğrulandı.
+- **Durum:** `RESOLVED`
 
+---
 
+### [BUG-260913-26] Excel Dışa Aktarımda Dar Sütun Genişlikleri, ######## Tarih Bozulması ve Lisans Kısıtı Nedeniyle Biçimlendirme Yapılamaması
 
+- **Tarih / Sprint:** 2026-09-13 / Sprint 9
+- **Etkilenen Katman / Dosya:** `backend/internal/handler/export_handler.go`, `backend/internal/handler/export_excel.go`, `frontend/src/components/ledger/ExportCsvButton.tsx`
+- **Belirti (Symptom):** Dışa aktarılan dosya Excel ile açıldığında tarih sütununun `########` görünmesi, kanal ve açıklama metinlerinin dar sütun sebebiyle kesilmesi. Ayrıca kullanıcının yerel Office hesabı deaktif/görüntüleme modunda olduğu için Excel şeridindeki "Biçimlendir -> Sütun Genişliğini Otomatik Ayarla" butonlarının kilitli kalması.
+- **Kök Neden (Root Cause):** Düz `.csv` dosyalarının saf metin olması sebebiyle satır/sütun genişliği veya sayı formatı üst verisi saklayamaması; Excel'in CSV dosyalarını varsayılan 8.43 karakter genişliğinde açması.
+- **Uygulanan Düzeltme (Fix):** 
+  1. `github.com/xuri/excelize/v2` kütüphanesi entegre edilerek `/periods/:id/export/excel` rotası kuruldu.
+  2. `export_excel.go` modülü oluşturuldu: Tarih için genişlik `20`, Açıklama için dinamik `40-75`, Tutar için `18` ve `#,##0.00` sayı formatı, başlık satır yüksekliği `28pt`, veri satırları `22pt`, koyu lacivert başlık (`#1E293B`), dondurulmuş üst satır (`Freeze Panes`) ve `AutoFilter` eklendi.
+  3. Frontend `ExportCsvButton.tsx` güncellenerek varsayılan olarak biçimlendirilmiş `.xlsx` indirme sağlandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. İsteyen kullanıcılar için alt tarafta düz CSV seçeneği de korundu.
+- **Doğrulama & Test Sonucu (Verification):** `go test ./internal/...` ve `npx tsc --noEmit` sıfır hata ile geçti. Üretilen XLSX dosyası test edildi.
+- **Durum:** `RESOLVED`
 
-
+---
+
+### [BUG-260913-27] Supabase PgBouncer (Port 6543) Prepared Statement Çakışması ve Brüt/Net İptal Mutabakatı Güvenlik Analizi
+
+- **Tarih / Sprint:** 2026-09-13 / Sprint 9.5
+- **Etkilenen Katman / Dosya:** `backend/internal/repository/postgres.go`, `migrations/06_period_rollover_fn.sql`, `backend/internal/repository/transaction_repo.go`
+- **Belirti (Symptom):** 
+  1. Canlı veritabanı stres testlerinde veya pgx kullanan yeni servislerde `ERROR: prepared statement "stmtcache_..." already exists (SQLSTATE 42P05)` hatası alınması.
+  2. Dönem devrinde iptal edilen işlemler ile ters kayıtların brüt hacimden (1.275.171 TL / 591.124 TL) düşülerek net hacme (1.264.771 TL / 580.724 TL) geçmesi sırasında net bakiyenin kuruşu kuruşuna (684.047 TL) korunmasının doğrulanması gereksinimi.
+- **Kök Neden (Root Cause):**
+  1. Supabase'in 6543 portundaki havuzlayıcısı (PgBouncer) "Transaction Pooling" modunda çalışır. Standart Postgres sürücüleri sorguları hızlandırmak için oturum bazlı "Prepared Statement" oluşturur; ancak PgBouncer istemciden gelen her sorguyu farklı bir arka plan bağlantısına yönlendirebildiğinden aynı statement adı çakışır ve `42P05` fırlatır.
+  2. Muhasebe defterinde 6 adet ters kayıt (`[İPTAL/TERS KAYIT]`, toplam 10.400 TL) mevcuttur. Çift taraflı muhasebede orijinal kayıt ile ters kayıt zıt yönlü olduğu için brüt toplamda birbirini sıfırlar; net sorguda ise her ikisi de filtrelendiğinde net bakiye yine 684.047 TL kalır.
+- **Uygulanan Düzeltme & Koruma (Fix & Mitigation):**
+  1. `backend/internal/repository/postgres.go` havuz konfigürasyonuna `config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol` zorunlu kural olarak bağlandı. Tüm repository ve test araçları bu havuz üzerinden konuşturularak prepared statement hatası kökten engellendi.
+  2. SQL `open_next_period` fonksiyonu ve `GetSummaryByPeriodID` sorgusu `t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM transactions rev WHERE rev.reversed_by = t.id)` ile çift taraflı filtrelemeye bağlandı.
+  3. Adversarial test paketi (`cmd/test_adversarial`) ile 131 gerçek işlemin brüt (1.275.171 TL - 591.124 TL = 684.047 TL) ve net (1.264.771 TL - 580.724 TL = 684.047 TL) bakiyelerinin %100 kusursuz mutabakat sağladığı kanıtlandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır yan etki. 131 kaydın tamamı ve 684.047 TL net bakiye korundu.
+- **Doğrulama & Test Sonucu (Verification):**
+  - Devir Fonksiyonu: 684.047,00 TL (PASS)
+  - Mükerrer Dönem Engeli: DB Unique Constraint `periods_tenant_id_label_key` (PASS)
+  - Append-Only Koruması: İşlem UPDATE/DELETE girişimi `trg_prevent_transaction_update/delete` tarafından engellendi (PASS)
+  - Kilitli Döneme Yazma: `trg_prevent_locked_period_insert` tarafından engellendi (PASS)
+  - Güvenlik Soruları: DB'de bcrypt hash, yanlış cevap ret, case-insensitive tolerans (PASS)
+  - Excel (.xlsx): 11.648 byte geçerli ZIP ve XML (PASS)
+  - 131 Kayıt Bütünlüğü: 131/131 kayıt ve 684.047,00 TL net bakiye eksiksiz (PASS)
+- **Durum:** `RESOLVED`

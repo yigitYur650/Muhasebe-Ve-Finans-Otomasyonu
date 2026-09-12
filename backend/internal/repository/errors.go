@@ -23,7 +23,10 @@ func MapSQLError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
-		case "23505": // unique_violation (e.g. idempotency key or period unique constraint)
+		case "23505": // unique_violation
+			if pgErr.ConstraintName == "periods_tenant_id_label_key" || strings.Contains(pgErr.Message, "periods_tenant_id_label_key") {
+				return domain.ErrPeriodAlreadyExists
+			}
 			return domain.ErrDuplicateIdempotencyKey
 		case "P0001": // raise_exception (trigger preventing modifications on locked periods or append-only rule)
 			msg := strings.ToLower(pgErr.Message)

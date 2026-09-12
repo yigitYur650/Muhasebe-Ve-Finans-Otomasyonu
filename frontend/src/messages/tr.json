@@ -37,6 +37,10 @@
     "statusOpen": "Açık Dönem",
     "statusLocked": "Kilitli Dönem",
     "selectPeriod": "Dönem Seçiniz",
+    "unlockPeriod": "Dönem Kilidini Aç",
+    "recordsCount": "İşlem Kaydı",
+    "ledgerView": "İşlem Defteri",
+    "newTransactionEntry": "Yeni İşlem Ekle",
     "archiveBanner": "Bu dönem kilitlidir. Yalnızca geçmiş kayıtları inceliyorsunuz (Salt-Okunur Mod)."
   },
   "transaction": {
@@ -164,7 +168,8 @@
     "inspect_ledger": "Defteri İncele",
     "no_history": "Henüz arşivlenmiş dönem bulunmuyor.",
     "status_locked": "Kilitli (Salt-Okunur)",
-    "status_open": "Aktif Dönem"
+    "status_open": "Aktif Dönem",
+    "actions": "İşlemler"
   },
   "import_export": {
     "exportCsv": "CSV Dışa Aktar",

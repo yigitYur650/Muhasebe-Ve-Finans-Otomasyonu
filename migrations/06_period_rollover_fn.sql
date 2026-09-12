@@ -24,16 +24,15 @@ BEGIN
         v_closing_balance := 0;
     ELSE
         SELECT v_prev_period.starting_balance
-            + COALESCE(SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END), 0)
-            - COALESCE(SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END), 0)
+            + COALESCE(SUM(CASE WHEN t.direction = 'in' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0)
+            - COALESCE(SUM(CASE WHEN t.direction = 'out' AND t.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.transactions rev WHERE rev.reversed_by = t.id) THEN t.amount ELSE 0 END), 0)
         INTO v_closing_balance
-        FROM public.transactions
-        WHERE period_id = v_prev_period.id
-          AND reversed_by IS NULL;
+        FROM public.transactions t
+        WHERE t.period_id = v_prev_period.id;
     END IF;
 
     INSERT INTO public.periods (tenant_id, label, starting_balance, status)
-    VALUES (p_tenant_id, p_label, v_closing_balance, 'open')
+    VALUES (p_tenant_id, p_label, COALESCE(v_closing_balance, 0), 'open')
     RETURNING id INTO v_new_period_id;
 
     RETURN v_new_period_id;

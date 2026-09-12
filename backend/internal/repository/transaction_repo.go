@@ -83,6 +83,43 @@ func (r *PostgresTransactionRepository) GetByPeriodID(ctx context.Context, perio
 	return transactions, nil
 }
 
+func (r *PostgresTransactionRepository) GetByPeriodIDPaginated(ctx context.Context, periodID uuid.UUID, limit, offset int) ([]domain.Transaction, int, error) {
+	var totalCount int
+	countQuery := `SELECT COUNT(*) FROM public.transactions WHERE period_id = $1`
+	if err := r.pool.QueryRow(ctx, countQuery, periodID).Scan(&totalCount); err != nil {
+		return nil, 0, MapSQLError(err)
+	}
+
+	query := `
+		SELECT id, tenant_id, period_id, direction, channel, amount, description, created_by, created_at, reversed_by
+		FROM public.transactions
+		WHERE period_id = $1
+		ORDER BY created_at ASC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := r.pool.Query(ctx, query, periodID, limit, offset)
+	if err != nil {
+		return nil, 0, MapSQLError(err)
+	}
+	defer rows.Close()
+
+	var transactions []domain.Transaction
+	for rows.Next() {
+		var tx domain.Transaction
+		if err := rows.Scan(
+			&tx.ID, &tx.TenantID, &tx.PeriodID, &tx.Direction, &tx.Channel,
+			&tx.Amount, &tx.Description, &tx.CreatedBy, &tx.CreatedAt, &tx.ReversedBy,
+		); err != nil {
+			return nil, 0, MapSQLError(err)
+		}
+		transactions = append(transactions, tx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, MapSQLError(err)
+	}
+	return transactions, totalCount, nil
+}
+
 func (r *PostgresTransactionRepository) GetSummaryByPeriodID(ctx context.Context, periodID uuid.UUID) (*domain.PeriodSummary, error) {
 	query := `
 		SELECT 

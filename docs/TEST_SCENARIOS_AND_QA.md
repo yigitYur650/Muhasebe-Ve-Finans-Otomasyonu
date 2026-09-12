@@ -184,7 +184,7 @@
 
 ---
 
-## 5. 👥 Rol Tabanlı Yetkilendirme (RBAC)
+## 5. 👥 Rol Tabanlı Yetkilendirme (RBAC) & Güvenlik Savunması
 
 ### Senaryo 5.1 — Standart Kullanıcı Yetki Kısıtları
 - **Önkoşul:** Kullanıcı rolü `standart` olmalıdır.
@@ -197,5 +197,100 @@
 
 ---
 
+### Senaryo 5.2 — Backend Header Spoofing ve Sahte Rol (`X-User-Role: admin`) Yetki Yükseltme Saldırısı *(Acımasız QA)*
+- **Saldırı Vektörü:** Bir saldırganın geçerli bir Supabase JWT token'ı olmadan doğrudan backend API'sine (`/api/v1/periods/`) `X-User-Role: admin` ve rastgele bir `X-User-ID` header'ı enjekte ederek yönetici yetkisi elde etmeye çalışması.
+- **İşlem Adımları:**
+  1. API'ye geçerli bir Supabase oturum token'ı göndermeyin.
+  2. Header'lara `X-User-Role: admin` ve rastgele sahte bir `X-User-ID` ekleyin.
+  3. `GET /api/v1/periods/` uç noktasına istek atın.
+- **Beklenen Sonuç (PASS):**
+  - Backend header'daki role asla körü körüne güvenmemelidir.
+  - Veritabanı `tenant_members` tablosunda kullanıcının gerçek üyeliği ve aktifliği doğrulanmalıdır.
+  - Üye olmayan veya sahte rol gönderen istek anında `403 Forbidden` / `401 Unauthorized` ile reddedilmelidir.
+- **Durum:** `[x]` (Acımasız QA runner ile test edildi — HTTP 403 ile engellendi)
+
+---
+
+### Senaryo 5.3 — Çok Kiracılı İzolasyon ve Tenant Hopping (İşletmeler Arası Sızma) *(Acımasız QA)*
+- **Saldırı Vektörü:** Sistemde kayıtlı meşru bir kullanıcının, ait olmadığı başka bir şirketin verilerine erişmek için istek başlığındaki `X-Tenant-ID` değerini farklı bir şirketin UUID'si ile değiştirmesi.
+- **İşlem Adımları:**
+  1. Gerçek ve meşru bir kullanıcı ID'si belirleyin.
+  2. Header'daki `X-Tenant-ID` değerini kullanıcının üye olmadığı yabancı bir tenant UUID'si (`99999999-9999...`) yapın.
+  3. `GET /api/v1/periods/` uç noktasına istek gönderin.
+- **Beklenen Sonuç (PASS):**
+  - Sistem kullanıcının o tenant üzerinde üyeliği olmadığını veritabanından doğrulamalı ve yabancı şirketin verilerini kesinlikle ifşa etmemelidir.
+  - İstek `403 Forbidden` dönerek sonlandırılmalıdır.
+- **Durum:** `[x]` (Acımasız QA runner ile test edildi — HTTP 403 ile engellendi)
+
+---
+
+## 6. 🛡️ Next.js SSR ve Oturum Doğrulaması (Middleware Defense)
+
+### Senaryo 6.1 — Sahte `defter_session` Çerezi ile Yetkisiz Erişim Engeli (Bypass Önleme) *(Acımasız QA)*
+- **Saldırı Vektörü:** Saldırganın tarayıcısına elle `defter_session=1` veya `defter_session=true` şeklinde basit bir sahte çerez ekleyerek kimlik doğrulama duvarını aşmaya çalışması.
+- **İşlem Adımları:**
+  1. Tarayıcı veya HTTP istemcisinde `Cookie: defter_session=1` başlığını ekleyin.
+  2. Doğrudan korumalı panel rotasına (`http://localhost:3000/tr`) `GET` isteği atın.
+- **Beklenen Sonuç (PASS):**
+  - Next.js Edge Middleware sahte `defter_session` çerezini tamamen görmezden gelmeli; sunucu tarafında `@supabase/ssr` üzerinden kriptografik JWT doğrulaması (`getUser()`) yapmalıdır.
+  - Yetkisiz istek anında `HTTP 307 Temporary Redirect` ile `/tr/login` sayfasına postalanmalıdır.
+- **Durum:** `[x]` (Acımasız QA runner ile test edildi — HTTP 307 -> /tr/login yönlendirmesi doğrulandı)
+
+---
+
+### Senaryo 6.2 — Bozuk veya İptal Edilmiş Token ile Panel Erişimi Engeli *(Acımasız QA)*
+- **Saldırı Vektörü:** Saldırganın imzasız veya kurcalanmış bir Supabase auth çerezi (`sb-access-token=malformed_fake_token`) göndermesi.
+- **İşlem Adımları:**
+  1. `Cookie: sb-access-token=tampered_xyz; defter_session=tampered` başlığı ile korumalı rotaya istek gönderin.
+- **Beklenen Sonuç (PASS):**
+  - Supabase SSR SDK'sı imza doğrulamasını başarısız saymalı ve kullanıcıyı `/tr/login` sayfasına yönlendirmelidir.
+- **Durum:** `[x]` (Acımasız QA runner ile test edildi — Tampered token engellendi)
+
+---
+
+## 7. 📄 Sayfalama (Pagination) Sınır ve Veri Bütünlüğü
+
+### Senaryo 7.1 — Sayfalar Arası Sıfır Mükerrerlik ve Sıfır Kayıp *(Acımasız QA)*
+- **Önkoşul:** Dönemde tam 131 adet gerçek işlem bulunmalıdır (`2026-08` dönemi).
+- **İşlem Adımları:**
+  1. Sayfa 1: `limit=50, offset=0` ile verileri çekin (50 satır).
+  2. Sayfa 2: `limit=50, offset=50` ile verileri çekin (50 satır).
+  3. Sayfa 3: `limit=50, offset=100` ile verileri çekin (31 satır).
+  4. Çekilen toplam 131 satırın UUID'lerini tekilleştirme kümesine (Set/Map) atın.
+- **Beklenen Sonuç (PASS):**
+  - Sayfa 1: 50 satır ve `X-Total-Count: 131`.
+  - Sayfa 2: 50 satır.
+  - Sayfa 3: 31 satır.
+  - Toplam birleştirilen tekil kayıt tam olarak 131 olmalıdır.
+  - Sayfalar arasında **0 mükerrer (duplicate)** kayıt ve **0 kayıp (dropped)** kayıt olmalıdır.
+- **Durum:** `[x]` (PostgreSQL veritabanı üzerinde 131 satırın tamamı tek tek doğrulandı — 0 mükerrer, 0 kayıp)
+
+---
+
+### Senaryo 7.2 — Uç Değer ve Sınır Aşımı (Out-of-Bounds Offset) Güvenliği *(Acımasız QA)*
+- **Saldırı Vektörü:** Kullanıcının veya istemcinin toplam kayıt sayısının çok üzerinde bir sayfa (Örn: `offset=5000`) talep etmesi.
+- **İşlem Adımları:**
+  1. `limit=50, offset=5000` parametreleri ile istek atın.
+- **Beklenen Sonuç (PASS):**
+  - Backend SQL hatası vermemeli veya panic yaşamamalıdır.
+  - Sistem zarif bir şekilde `[]` (boş dizi) ve toplam kayıt sayısını (131) dönmelidir.
+- **Durum:** `[x]` (Test edildi — Güvenli boş dizi dönüşü sağlandı)
+
+---
+
+## 8. 🌐 Çoklu Dil (i18n) Bütünlüğü ve Senkronizasyon
+
+### Senaryo 8.1 — Türkçe ve İngilizce Dil Sözlüklerinin %100 Birebir Eşitliği *(Acımasız QA)*
+- **Önkoşul:** `frontend/src/messages/tr.json` ve `frontend/src/messages/en.json` dosyaları.
+- **İşlem Adımları:**
+  1. İki sözlük dosyasındaki tüm iç içe geçmiş anahtarları (nested JSON keys) özyinelemeli (recursive) olarak tarayın.
+  2. TR'de olup EN'de olmayan, EN'de olup TR'de olmayan anahtarları tespit edin.
+- **Beklenen Sonuç (PASS):**
+  - Hiçbir anahtar eksik olmamalı; dil değiştirildiğinde arayüzde eksik metin (fallback / missing key) hatası çıkmamalıdır.
+- **Durum:** `[x]` (Test edildi — TR ve EN sözlükleri %100 birebir senkronize)
+
+---
+
 ## 📝 Not Defteri ve Gelecek Eklemeler
 *Kullanıcı olarak uygulamayı test ettikçe aklınıza gelen tüm senaryoları, şüpheli durumları veya özel müşteri isteklerini buraya madde madde ekleyeceğiz.*
+

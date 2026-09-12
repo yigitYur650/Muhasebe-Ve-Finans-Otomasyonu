@@ -74,7 +74,7 @@ export const PeriodHistoryView: React.FC<PeriodHistoryViewProps> = ({
                   <th className="px-4 py-3 text-right">{t('total_out')}</th>
                   <th className="px-4 py-3 text-right">{t('closing_balance')}</th>
                   <th className="px-4 py-3 text-center">{t('locked_at')}</th>
-                  <th className="px-4 py-3 text-center">İşlem</th>
+                  <th className="px-4 py-3 text-center">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">

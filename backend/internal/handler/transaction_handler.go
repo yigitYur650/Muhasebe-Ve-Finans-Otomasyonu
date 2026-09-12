@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -99,9 +100,43 @@ func (h *TransactionHandler) ListTransactions(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Geçersiz dönem ID formatı")
 	}
 
-	transactions, err := h.txRepo.GetByPeriodID(c.UserContext(), periodID)
-	if err != nil {
-		return err
+	page := c.QueryInt("page", 0)
+	limit := c.QueryInt("limit", 0)
+
+	var transactions []domain.Transaction
+	var totalCount int
+
+	if page > 0 && limit > 0 {
+		offset := (page - 1) * limit
+		var errP error
+		transactions, totalCount, errP = h.txRepo.GetByPeriodIDPaginated(c.UserContext(), periodID, limit, offset)
+		if errP != nil {
+			return errP
+		}
+		c.Set("X-Total-Count", fmt.Sprintf("%d", totalCount))
+		c.Set("X-Page", fmt.Sprintf("%d", page))
+		c.Set("X-Limit", fmt.Sprintf("%d", limit))
+	} else {
+		var errA error
+		transactions, errA = h.txRepo.GetByPeriodID(c.UserContext(), periodID)
+		if errA != nil {
+			return errA
+		}
+		totalCount = len(transactions)
+		c.Set("X-Total-Count", fmt.Sprintf("%d", totalCount))
+	}
+
+	tenantIDVal := c.Locals(middleware.LocalTenantIDKey)
+	if tenantID, ok := tenantIDVal.(uuid.UUID); ok && tenantID != uuid.Nil {
+		if len(transactions) > 0 && transactions[0].TenantID != tenantID {
+			return c.Status(fiber.StatusForbidden).JSON(ResponseEnvelope{
+				Success: false,
+				Error: &ErrorData{
+					Code:    "FORBIDDEN",
+					Message: "Bu döneme ait işlemleri görüntüleme yetkiniz yok",
+				},
+			})
+		}
 	}
 
 	return c.Status(fiber.StatusOK).JSON(ResponseEnvelope{

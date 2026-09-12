@@ -38,6 +38,9 @@ func (s *importService) ImportTransactionsFromCSV(
 	if err != nil {
 		return nil, err
 	}
+	if tenantID != uuid.Nil && period.TenantID != tenantID {
+		return nil, domain.ErrUnauthorized
+	}
 	if period.IsLocked() {
 		return nil, domain.ErrPeriodLocked
 	}

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"os"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -20,18 +22,20 @@ func SetupRouter(
 	periodRepo domain.PeriodRepository,
 	txRepo domain.TransactionRepository,
 	idemRepo domain.IdempotencyRepository,
-	tenantSvc ...domain.TenantService,
+	tenantServices ...interface{},
 ) {
 	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// Dynamic CORS configuration accepting any frontend origin with credentials
+	// Secure CORS configuration with restricted allowed origins
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,https://muhasebe-ve-finans-otomasyonu-2.onrender.com"
+	}
 	app.Use(cors.New(cors.Config{
-		AllowOriginsFunc: func(origin string) bool {
-			return true
-		},
+		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Idempotency-Key, X-Tenant-ID, X-User-ID, X-User-Role",
 		AllowMethods:     "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
 		AllowCredentials: true,
@@ -59,14 +63,32 @@ func SetupRouter(
 	importSvc := service.NewImportService(txRepo, periodRepo)
 	importH := NewImportHandler(importSvc)
 
-	secRepo := repository.NewMockUserSecurityRepository()
+	var tenantSvc domain.TenantService
+	var tenantRepo domain.TenantRepository
+	var secRepo domain.UserSecurityRepository
+	for _, arg := range tenantServices {
+		if ts, ok := arg.(domain.TenantService); ok {
+			tenantSvc = ts
+		}
+		if tr, ok := arg.(domain.TenantRepository); ok {
+			tenantRepo = tr
+		}
+		if sr, ok := arg.(domain.UserSecurityRepository); ok {
+			secRepo = sr
+		}
+	}
+
+	if secRepo == nil {
+		secRepo = repository.NewMockUserSecurityRepository()
+	}
 	authSvc := service.NewAuthService(secRepo)
 	authH := NewAuthHandler(authSvc)
 
 	api := app.Group("/api/v1")
 
-	// Context middleware for extracting X-Tenant-ID, X-User-ID, X-User-Role
-	api.Use(middleware.ContextMiddleware())
+	// Supabase JWT authentication & tenant membership verification middleware
+	jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
+	api.Use(middleware.AuthMiddleware(jwtSecret, tenantRepo))
 
 	// Period routes
 	periodsGroup := api.Group("/periods")
@@ -74,6 +96,7 @@ func SetupRouter(
 	periodsGroup.Get("/history", periodH.GetPeriodHistory)
 	periodsGroup.Get("/template/csv", exportH.DownloadSampleCSVTemplate)
 	periodsGroup.Get("/:id/export/csv", exportH.ExportTransactionsCSV)
+	periodsGroup.Get("/:id/export/excel", exportH.ExportTransactionsExcel)
 	periodsGroup.Post("/:id/import/csv", importH.ImportTransactionsCSV)
 	periodsGroup.Post("/open", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
 	periodsGroup.Post("/open-next", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
@@ -94,8 +117,8 @@ func SetupRouter(
 	authGroup.Post("/reset-password", authH.ResetPassword)
 
 	// Tenant Member routes
-	if len(tenantSvc) > 0 && tenantSvc[0] != nil {
-		tenantH := NewTenantHandler(tenantSvc[0])
+	if tenantSvc != nil {
+		tenantH := NewTenantHandler(tenantSvc)
 		tenantGroup := api.Group("/tenants")
 		tenantGroup.Get("/members", tenantH.ListMembers)
 		tenantGroup.Post("/members", tenantH.AddMember)

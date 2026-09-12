@@ -132,6 +132,14 @@ func (m *MockTransactionRepo) GetByPeriodID(ctx context.Context, periodID uuid.U
 	return args.Get(0).([]domain.Transaction), args.Error(1)
 }
 
+func (m *MockTransactionRepo) GetByPeriodIDPaginated(ctx context.Context, periodID uuid.UUID, limit, offset int) ([]domain.Transaction, int, error) {
+	args := m.Called(ctx, periodID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]domain.Transaction), args.Int(1), args.Error(2)
+}
+
 func (m *MockTransactionRepo) GetSummaryByPeriodID(ctx context.Context, periodID uuid.UUID) (*domain.PeriodSummary, error) {
 	args := m.Called(ctx, periodID)
 	if args.Get(0) == nil {

@@ -6,8 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Globe, ShieldCheck, LogOut, Flame, KeyRound } from "lucide-react";
+import { Building2, Globe, ShieldCheck, LogOut, Flame, KeyRound, Users } from "lucide-react";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
+import { MemberManagementDrawer } from "@/components/auth/MemberManagementDrawer";
 
 interface HeaderProps {
   tenantName?: string;
@@ -22,6 +23,7 @@ export function Header({ tenantName = "Öncü Otogaz Ana Şube", userRole = "adm
   const pathname = usePathname();
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isMemberDrawerOpen, setIsMemberDrawerOpen] = useState(false);
 
   const toggleLanguage = () => {
     const nextLocale = locale === "tr" ? "en" : "tr";
@@ -76,6 +78,18 @@ export function Header({ tenantName = "Öncü Otogaz Ana Şube", userRole = "adm
               {getRoleLabel(userRole)}
             </Badge>
 
+            {userRole === "admin" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMemberDrawerOpen(true)}
+                className="gap-1.5 h-8 text-xs font-semibold border-amber-500/30 bg-amber-950/20 text-amber-300 hover:text-amber-200 hover:border-amber-400"
+              >
+                <Users className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden md:inline">Personel / Üye Yönetimi</span>
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -110,6 +124,7 @@ export function Header({ tenantName = "Öncü Otogaz Ana Şube", userRole = "adm
       </header>
 
       <ChangePasswordDialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen} />
+      <MemberManagementDrawer open={isMemberDrawerOpen} onOpenChange={setIsMemberDrawerOpen} />
     </>
   );
 }

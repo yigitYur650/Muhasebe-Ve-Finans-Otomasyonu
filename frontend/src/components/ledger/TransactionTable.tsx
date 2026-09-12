@@ -7,6 +7,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTL } from "@/lib/decimal";
-import { ArrowDownLeft, ArrowUpRight, Search, RotateCcw, Ban } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Search, RotateCcw, Ban, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 export interface TransactionItem {
   id: string;
@@ -46,12 +47,15 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
   const [globalFilter, setGlobalFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
 
   const filteredData = useMemo(() => {
     return transactions.filter((tx) => {
-      // Status filter
-      const isReversedOrReversal = !!tx.reversedBy || !!tx.isReversalEntry;
+      // Status filter (Aktif, İptal / Denkleştirme, Tümü)
+      const isReversedOrReversal =
+        Boolean(tx.reversedBy) ||
+        Boolean(tx.isReversalEntry) ||
+        Boolean(tx.description?.includes("[İPTAL/TERS KAYIT]"));
       if (statusFilter === "active" && isReversedOrReversal) {
         return false;
       }
@@ -212,12 +216,22 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
     [t, tTx, isPeriodLocked, onReverse]
   );
 
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+  });
+
   const table = useReactTable({
     data: filteredData,
     columns,
+    state: {
+      pagination,
+    },
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const channelsList = [
@@ -252,13 +266,13 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           {/* Status Filter (Aktif vs İptal) */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[165px] text-xs font-medium">
+            <SelectTrigger className="w-[185px] text-xs font-medium">
               <SelectValue placeholder="Durum Süzgeci" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tüm İşlemler</SelectItem>
-              <SelectItem value="active">Sadece Aktif Kayıtlar</SelectItem>
-              <SelectItem value="reversed">İptal/Denkleştirme</SelectItem>
+              <SelectItem value="active">Aktif İşlemler (Varsayılan)</SelectItem>
+              <SelectItem value="reversed">İptal Edilenler / Ters Kayıt</SelectItem>
+              <SelectItem value="all">Tüm Kayıtlar (Ham Defter)</SelectItem>
             </SelectContent>
           </Select>
 
@@ -335,6 +349,88 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination Footer Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white rounded-b-xl border text-xs text-slate-600 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span>Sayfa Başı:</span>
+          <Select
+            value={String(table.getState().pagination.pageSize)}
+            onValueChange={(val) => table.setPageSize(Number(val))}
+          >
+            <SelectTrigger className="h-8 w-20 text-xs font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-slate-300">|</span>
+          <span>
+            Toplam <strong className="font-semibold text-slate-900">{filteredData.length}</strong> işlemden{" "}
+            <strong className="font-semibold text-slate-900">
+              {filteredData.length === 0
+                ? 0
+                : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}
+              -
+              {Math.min(
+                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                filteredData.length
+              )}
+            </strong>{" "}
+            arası gösteriliyor
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            title="İlk Sayfa"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5 gap-1 font-medium"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span>Önceki</span>
+          </Button>
+          <span className="px-2.5 font-semibold text-slate-800">
+            {table.getPageCount() === 0 ? 1 : table.getState().pagination.pageIndex + 1} /{" "}
+            {Math.max(1, table.getPageCount())}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5 gap-1 font-medium"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            <span>Sonraki</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            title="Son Sayfa"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

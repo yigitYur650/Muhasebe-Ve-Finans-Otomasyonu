@@ -4,6 +4,11 @@
 .env.development.local
 .env.test.local
 .env.production.local
+# Backups & dumps (NEVER commit client backups)
+backups/
+backend/backups/
+*.dump
+!migrations/*.sql
 
 # Node.js / Next.js
 node_modules/

@@ -7,7 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"deftersystem/backend/internal/domain"
 	"deftersystem/backend/internal/handler"
 	"deftersystem/backend/internal/repository"
 	"deftersystem/backend/internal/service"
@@ -15,65 +14,54 @@ import (
 
 func main() {
 	app := fiber.New(fiber.Config{
-		AppName:      "Deftersystem API v1.0",
-		ErrorHandler: handler.CustomErrorHandler,
+		AppName:        "Deftersystem API v1.0",
+		ErrorHandler:   handler.CustomErrorHandler,
+		ReadBufferSize: 16384, // 16KB header buffer to support modern JWT and auth cookies safely
 	})
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		// Try reading from .env or ../.env or backend/.env
-		data, err := os.ReadFile(".env")
-		if err != nil {
-			data, err = os.ReadFile("../.env")
-		}
-		if err != nil {
-			data, err = os.ReadFile("backend/.env")
-		}
-		if err == nil {
+	// Load all variables from .env file into runtime environment
+	envPaths := []string{".env", "../.env", "backend/.env"}
+	for _, envPath := range envPaths {
+		if data, err := os.ReadFile(envPath); err == nil {
 			for _, line := range strings.Split(string(data), "\n") {
 				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "DATABASE_URL=") {
-					dbURL = strings.TrimPrefix(line, "DATABASE_URL=")
-					dbURL = strings.Trim(dbURL, `"'`)
-					break
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					val := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+					if os.Getenv(key) == "" {
+						_ = os.Setenv(key, val)
+					}
 				}
 			}
+			break
 		}
 	}
+
+	dbURL := os.Getenv("DATABASE_URL")
 
 	log.Printf("Connecting to live PostgreSQL database...")
 	pool, err := repository.NewPostgresPool(dbURL)
-	if err != nil {
-		log.Printf("Warning: Failed to connect to PostgreSQL: %v", err)
-		log.Println("Starting API server in standalone mode...")
-	} else {
-		defer pool.Close()
-		log.Println("Successfully connected to PostgreSQL database pool!")
+	if err != nil || pool == nil {
+		log.Fatalf("FATAL: Failed to connect to PostgreSQL database pool: %v. Server will not start in mock fallback mode.", err)
 	}
+	defer pool.Close()
+	log.Println("Successfully connected to PostgreSQL database pool!")
 
-	var periodRepo domain.PeriodRepository
-	var txRepo domain.TransactionRepository
-	var tenantRepo domain.TenantRepository
-	var idemRepo domain.IdempotencyRepository
-
-	if pool != nil {
-		periodRepo = repository.NewPostgresPeriodRepository(pool)
-		txRepo = repository.NewPostgresTransactionRepository(pool)
-		tenantRepo = repository.NewPostgresTenantRepository(pool)
-		idemRepo = repository.NewPostgresIdempotencyRepository(pool)
-	} else {
-		log.Println("PostgreSQL connection unavailable; initializing in-memory fallback repositories.")
-		periodRepo = repository.NewMockPeriodRepo()
-		txRepo = repository.NewMockTransactionRepo()
-		tenantRepo = repository.NewMockTenantRepo()
-		idemRepo = repository.NewMockIdemRepo()
-	}
+	periodRepo := repository.NewPostgresPeriodRepository(pool)
+	txRepo := repository.NewPostgresTransactionRepository(pool)
+	tenantRepo := repository.NewPostgresTenantRepository(pool)
+	idemRepo := repository.NewPostgresIdempotencyRepository(pool)
+	secRepo := repository.NewPostgresUserSecurityRepository(pool)
 
 	periodSvc := service.NewPeriodService(periodRepo, tenantRepo, txRepo)
 	txSvc := service.NewTransactionService(txRepo, periodRepo)
 	tenantSvc := service.NewTenantService(tenantRepo)
 
-	handler.SetupRouter(app, periodSvc, txSvc, periodRepo, txRepo, idemRepo, tenantSvc)
+	handler.SetupRouter(app, periodSvc, txSvc, periodRepo, txRepo, idemRepo, tenantSvc, tenantRepo, secRepo)
 
 	port := os.Getenv("PORT")
 	if port == "" {

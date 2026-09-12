@@ -14,6 +14,7 @@ var (
 	ErrTenantNotFound             = errors.New("işletme (tenant) bulunamadı")
 	ErrUnauthorized               = errors.New("yetkisiz erişim")
 	ErrDuplicateIdempotencyKey    = errors.New("bu Idempotency-Key daha önce kullanılmış")
+	ErrPeriodAlreadyExists        = errors.New("bu dönem etiketi zaten mevcut")
 	ErrTransactionAlreadyReversed = errors.New("bu işlem zaten ters kayıt ile iptal edilmiş")
 	ErrCannotRemoveLastAdmin      = errors.New("tenant içerisindeki son admin kullanıcısı silinemez")
 )

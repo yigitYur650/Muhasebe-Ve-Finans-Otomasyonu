@@ -113,7 +113,24 @@
 - [x] Giriş ekranına (`frontend/src/app/[locale]/login/page.tsx`) "Yeni Kullanıcı Kayıt Ol" modu (`supabase.auth.signUp`) entegre edilir (PASS, 2026-09-04)
 - [x] Dokümantasyon (`PROJECT_MAP_FOR_LLM.md`, `TASK.md`, `BUG_AND_FIX.md`, `RELEASE_NOTES.md`) güncellenir (PASS, 2026-09-04)
 
+## Sprint 9.5 — Excel Motoru (.xlsx), Fiber Tampon İyileştirmesi ve Canlı Veri Bütünlüğü
+
+- [x] Go Fiber HTTP 431 hatası çözümü: `ReadBufferSize: 16384` ile JWT ve auth çerezleri güvenceye alınır (PASS, 2026-09-12)
+- [x] Yeni dönem açma modalında Idempotency-Key çakışması (HTTP 409) giderilir, taze UUID üretimi sağlanır (PASS, 2026-09-12)
+- [x] Supabase veritabanındaki 32 adet test işlemi ve mock dönemler temizlenir; 2026-08 dönemindeki 131 adet gerçek işlem kuruşu kuruşuna doğrulanır (PASS, 2026-09-12)
+- [x] Native Excel motoru (`github.com/xuri/excelize/v2`) entegre edilir; otomatik sütun genişlikleri, koyu başlık, dondurulmuş satır, otomatik filtre ve para birimi formatlaması eklenir (`export_excel.go`) (PASS, 2026-09-13)
+- [x] Frontend `ExportCsvButton.tsx` güncellenerek lisanssız/görüntüleme modundaki Excel'lerde dahi bozulmayan hazır `.xlsx` indirme aktif edilir (PASS, 2026-09-13)
+- [x] `BUG_AND_FIX.md` ve `TECHNICAL_DEBT_AND_MOCK_AUDIT.md` güncel denetim bulgularıyla senkronize edilir (PASS, 2026-09-13)
+
+## Sprint 10 — Akıllı Migration Yönetimi, TRUNCATE Yasağı ve Çevrimdışı Yedekleme (Offline Backup)
+
+- [x] PostgreSQL `public.schema_migrations` tablosu oluşturulur (PASS, 2026-09-13)
+- [x] `backend/cmd/migrate/main.go` akıllı migration koşucusuna dönüştürülür: baseline tespiti, sıralı çalışma ve transaction güvencesi (PASS, 2026-09-13)
+- [x] `migrations/14_strict_data_loss_prevention.sql` geliştirilerek canlıya uygulanır: `TRUNCATE` yasağı trigger'ı (`trg_prevent_transaction_truncate`) ve `ON DELETE RESTRICT` foreign key koruması (PASS, 2026-09-13)
+- [x] Çevrimdışı tam veritabanı yedekleme aracı (`backend/cmd/backup/main.go`) geliştirilir; tek komutla tüm canlı defterin `.json` ve `.sql` dökümü `backups/` klasörüne başarıyla alınır (PASS, 2026-09-13)
+
 ---
 
 ## Not
 Sprint 0'daki "AÇIK KARAR" maddesi onaylanmadan Sprint 1 şema tasarımına başlanmamalı — bkz. PROJECT_BRIEF.md Bölüm 3.
+

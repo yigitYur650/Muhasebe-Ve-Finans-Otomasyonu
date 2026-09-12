@@ -47,6 +47,11 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 			errCode = "DUPLICATE_IDEMPOTENCY_KEY"
 			errMsg = err.Error()
 
+		case errors.Is(err, domain.ErrPeriodAlreadyExists):
+			code = fiber.StatusConflict
+			errCode = "PERIOD_ALREADY_EXISTS"
+			errMsg = "Bu dönem etiketi zaten mevcut. Lütfen farklı bir dönem adı belirleyin."
+
 		case errors.Is(err, domain.ErrInvalidAmount):
 			code = fiber.StatusBadRequest
 			errCode = "INVALID_AMOUNT"

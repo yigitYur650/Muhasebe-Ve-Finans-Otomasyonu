@@ -205,6 +205,26 @@ func (m *MockTransactionRepo) GetByPeriodID(ctx context.Context, periodID uuid.U
 	return list, nil
 }
 
+func (m *MockTransactionRepo) GetByPeriodIDPaginated(ctx context.Context, periodID uuid.UUID, limit, offset int) ([]domain.Transaction, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var all []domain.Transaction
+	for _, tx := range m.transactions {
+		if tx.PeriodID == periodID {
+			all = append(all, *tx)
+		}
+	}
+	total := len(all)
+	if offset >= total {
+		return []domain.Transaction{}, total, nil
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
+}
+
 func (m *MockTransactionRepo) GetSummaryByPeriodID(ctx context.Context, periodID uuid.UUID) (*domain.PeriodSummary, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

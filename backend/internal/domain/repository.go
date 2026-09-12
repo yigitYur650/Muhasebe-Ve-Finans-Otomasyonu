@@ -31,6 +31,7 @@ type TransactionRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*Transaction, error)
 	Create(ctx context.Context, tx *Transaction) error
 	GetByPeriodID(ctx context.Context, periodID uuid.UUID) ([]Transaction, error)
+	GetByPeriodIDPaginated(ctx context.Context, periodID uuid.UUID, limit, offset int) ([]Transaction, int, error)
 	GetSummaryByPeriodID(ctx context.Context, periodID uuid.UUID) (*PeriodSummary, error)
 	ReverseTransaction(ctx context.Context, origID uuid.UUID, revTx *Transaction) error
 	MarkReversed(ctx context.Context, targetID, reversalID uuid.UUID) error

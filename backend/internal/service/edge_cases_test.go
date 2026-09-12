@@ -296,7 +296,7 @@ func TestPeriodService_ListPeriods_NoPeriodsReturnsEmpty(t *testing.T) {
 	mockTxRepo := new(MockTransactionRepo)
 	svc := service.NewPeriodService(mockPeriodRepo, mockTenantRepo, mockTxRepo)
 
-	mockPeriodRepo.On("GetLatestByTenant", ctx, tenantID).Return(nil, domain.ErrNotFound)
+	mockPeriodRepo.On("GetPeriodHistory", ctx, tenantID).Return([]domain.PeriodHistoryItem{}, nil)
 
 	periods, err := svc.ListPeriods(ctx, tenantID)
 
@@ -316,7 +316,7 @@ func TestPeriodService_ListPeriods_RepoErrorPropagates(t *testing.T) {
 	mockTxRepo := new(MockTransactionRepo)
 	svc := service.NewPeriodService(mockPeriodRepo, mockTenantRepo, mockTxRepo)
 
-	mockPeriodRepo.On("GetLatestByTenant", ctx, tenantID).Return(nil, context.DeadlineExceeded)
+	mockPeriodRepo.On("GetPeriodHistory", ctx, tenantID).Return(nil, context.DeadlineExceeded)
 
 	_, err := svc.ListPeriods(ctx, tenantID)
 

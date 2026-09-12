@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"deftersystem/backend/internal/repository"
 )
@@ -12,7 +13,24 @@ import (
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+		// Read from .env or backend/.env
+		for _, envPath := range []string{".env", "../.env", "backend/.env"} {
+			if data, err := os.ReadFile(envPath); err == nil {
+				for _, line := range strings.Split(string(data), "\n") {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "DATABASE_URL=") {
+						dbURL = strings.Trim(strings.TrimPrefix(line, "DATABASE_URL="), `"'`)
+						break
+					}
+				}
+			}
+			if dbURL != "" {
+				break
+			}
+		}
+	}
+	if dbURL == "" {
+		log.Fatal("HATA: DATABASE_URL ortam değişkeni veya .env dosyası bulunamadı.")
 	}
 	pool, err := repository.NewPostgresPool(dbURL)
 	if err != nil {

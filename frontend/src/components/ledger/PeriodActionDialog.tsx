@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,24 @@ interface PeriodActionDialogProps {
   userRole: string;
   onLockPeriod: (idempotencyKey: string) => Promise<void>;
   onOpenNextPeriod: (label: string, idempotencyKey: string) => Promise<void>;
+  existingLabels?: string[];
+}
+
+function getNextSuggestedLabel(labels: string[] = []): string {
+  const valid = labels
+    .map((l) => l?.trim())
+    .filter((l): l is string => Boolean(l && /^\d{4}-\d{2}$/.test(l)))
+    .sort();
+  if (!valid.length) return "2026-12";
+  const last = valid[valid.length - 1];
+  const [yearStr, monthStr] = last.split("-");
+  let year = parseInt(yearStr, 10);
+  let month = parseInt(monthStr, 10) + 1;
+  if (month > 12) {
+    year += 1;
+    month = 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 export function PeriodActionDialog({
@@ -23,14 +41,23 @@ export function PeriodActionDialog({
   userRole,
   onLockPeriod,
   onOpenNextPeriod,
+  existingLabels = [],
 }: PeriodActionDialogProps) {
   const t = useTranslations("common");
   const tPeriod = useTranslations("period");
   const tErr = useTranslations("errors");
 
-  const [nextLabel, setNextLabel] = useState<string>("2026-09");
+  const [nextLabel, setNextLabel] = useState<string>(() => getNextSuggestedLabel(existingLabels));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Sync label when dialog opens
+  useEffect(() => {
+    if (open) {
+      setNextLabel(getNextSuggestedLabel(existingLabels));
+      setErrorMsg(null);
+    }
+  }, [open, existingLabels]);
 
   const canManagePeriod = userRole === "admin" || userRole === "muhasebeci";
 
