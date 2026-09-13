@@ -2,6 +2,7 @@ package handler
 
 import (
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -31,14 +32,19 @@ func SetupRouter(
 
 	// Secure CORS configuration with restricted allowed origins
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	defaultOrigins := "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,https://muhasebe-ve-finans-otomasyonu-2.onrender.com,https://www.oncuotogazmuhasebe.com.tr,https://oncuotogazmuhasebe.com.tr"
 	if allowedOrigins == "" {
-		allowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,https://muhasebe-ve-finans-otomasyonu-2.onrender.com"
+		allowedOrigins = defaultOrigins
+	} else if !strings.Contains(allowedOrigins, "oncuotogazmuhasebe.com.tr") {
+		allowedOrigins = allowedOrigins + ",https://www.oncuotogazmuhasebe.com.tr,https://oncuotogazmuhasebe.com.tr"
 	}
+
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Idempotency-Key, X-Tenant-ID, X-User-ID, X-User-Role",
 		AllowMethods:     "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
 		AllowCredentials: true,
+		ExposeHeaders:    "X-Total-Count, X-Page, X-Limit, Content-Disposition",
 	}))
 
 	app.Get("/", func(c *fiber.Ctx) error {
