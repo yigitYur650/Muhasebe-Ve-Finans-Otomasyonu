@@ -58,7 +58,7 @@ func (r *PostgresTransactionRepository) GetByPeriodID(ctx context.Context, perio
 		SELECT id, tenant_id, period_id, direction, channel, amount, description, created_by, created_at, reversed_by
 		FROM public.transactions
 		WHERE period_id = $1
-		ORDER BY created_at ASC
+		ORDER BY created_at DESC
 	`
 	rows, err := r.pool.Query(ctx, query, periodID)
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *PostgresTransactionRepository) GetByPeriodIDPaginated(ctx context.Conte
 		SELECT id, tenant_id, period_id, direction, channel, amount, description, created_by, created_at, reversed_by
 		FROM public.transactions
 		WHERE period_id = $1
-		ORDER BY created_at ASC
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 	rows, err := r.pool.Query(ctx, query, periodID, limit, offset)

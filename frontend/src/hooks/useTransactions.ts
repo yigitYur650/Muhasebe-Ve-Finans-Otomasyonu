@@ -89,6 +89,9 @@ export function useTransactions(
           };
         });
 
+        // Ensure newest transactions are always at the top
+        mapped.sort((a, b) => (b.createdAt > a.createdAt ? 1 : b.createdAt < a.createdAt ? -1 : 0));
+
         setTransactions(mapped);
       }
     } catch (err) {

@@ -10,6 +10,7 @@ import {
   getPaginationRowModel,
   flexRender,
   createColumnHelper,
+  type SortingState,
 } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTL } from "@/lib/decimal";
-import { ArrowDownLeft, ArrowUpRight, Search, RotateCcw, Ban, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Search, RotateCcw, Ban, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 export interface TransactionItem {
   id: string;
@@ -120,7 +121,12 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
         ),
       }),
       columnHelper.accessor("amount", {
-        header: () => <div className="text-right">{tTx("amount")}</div>,
+        header: () => tTx("amount"),
+        sortingFn: (rowA, rowB, columnId) => {
+          const numA = parseFloat(rowA.getValue(columnId)) || 0;
+          const numB = parseFloat(rowB.getValue(columnId)) || 0;
+          return numA - numB;
+        },
         cell: (info) => {
           const isIn = info.row.original.direction === "in";
           const isReversed = !!info.row.original.reversedBy;
@@ -152,6 +158,7 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }),
       columnHelper.accessor("createdAt", {
         header: () => tTx("createdAt"),
+        sortingFn: "datetime",
         cell: (info) => <span className="text-xs text-slate-500" suppressHydrationWarning>{info.getValue()}</span>,
       }),
       columnHelper.accessor("createdBy", {
@@ -166,6 +173,7 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }),
       columnHelper.display({
         id: "status",
+        enableSorting: false,
         header: () => t("status"),
         cell: (info) => {
           const isReversed = !!info.row.original.reversedBy;
@@ -195,6 +203,7 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }),
       columnHelper.display({
         id: "actions",
+        enableSorting: false,
         header: () => <div className="text-right">{t("actions")}</div>,
         cell: (info) => {
           const tx = info.row.original;
@@ -222,6 +231,10 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
     [t, tTx, isPeriodLocked, onReverse]
   );
 
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "createdAt", desc: true },
+  ]);
+
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 25,
@@ -232,8 +245,10 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
     columns,
     state: {
       pagination,
+      sorting,
     },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -317,13 +332,38 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
           <TableHeader className="bg-slate-100/70">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  const isSorted = header.column.getIsSorted();
+                  const isRightAligned = header.id === "amount" || header.id === "actions";
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      className={`text-xs font-bold text-slate-700 ${
+                        canSort ? "cursor-pointer select-none hover:bg-slate-200/60 transition-colors" : ""
+                      }`}
+                    >
+                      <div className={`flex items-center gap-1.5 ${isRightAligned ? "justify-end" : ""}`}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                        {canSort && (
+                          <span className="text-slate-400">
+                            {isSorted === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-primary font-bold" />
+                            ) : isSorted === "desc" ? (
+                              <ArrowDown className="w-3.5 h-3.5 text-primary font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-30 hover:opacity-80" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
