@@ -65,6 +65,16 @@ export function useTransactions(
           );
           const wasReversed = isOriginalReversed.has(tx.id);
 
+          let creatorDisplay = tx.created_by_name;
+          if (!creatorDisplay) {
+            const raw = String(tx.created_by || "");
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+              creatorDisplay = "Admin";
+            } else {
+              creatorDisplay = raw || "Admin";
+            }
+          }
+
           return {
             id: tx.id,
             periodId: tx.period_id,
@@ -72,7 +82,7 @@ export function useTransactions(
             channel: tx.channel,
             amount: tx.amount,
             description: tx.description,
-            createdBy: tx.created_by_name || tx.created_by || "Yönetici",
+            createdBy: creatorDisplay,
             createdAt: tx.created_at ? tx.created_at.slice(0, 16).replace("T", " ") : "",
             reversedBy: wasReversed ? "reversed" : null,
             isReversalEntry: isReversal,

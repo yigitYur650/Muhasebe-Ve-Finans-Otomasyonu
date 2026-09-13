@@ -156,7 +156,13 @@ export function TransactionTable({ transactions, isPeriodLocked, onReverse }: Tr
       }),
       columnHelper.accessor("createdBy", {
         header: () => tTx("createdBy"),
-        cell: (info) => <span className="text-xs text-slate-700 font-medium">{info.getValue()}</span>,
+        cell: (info) => {
+          const val = String(info.getValue() || "Admin");
+          const display = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+            ? "Admin"
+            : val;
+          return <span className="text-xs text-slate-700 font-medium">{display}</span>;
+        },
       }),
       columnHelper.display({
         id: "status",
