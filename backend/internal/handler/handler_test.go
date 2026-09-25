@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -223,6 +224,7 @@ func setupTestApp(
 	txRepo domain.TransactionRepository,
 	idemRepo domain.IdempotencyRepository,
 ) *fiber.App {
+	_ = os.Setenv("ENVIRONMENT", "local_test")
 	app := fiber.New(fiber.Config{
 		ErrorHandler: handler.CustomErrorHandler,
 	})

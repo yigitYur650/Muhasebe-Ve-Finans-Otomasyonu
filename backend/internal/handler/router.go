@@ -72,6 +72,8 @@ func SetupRouter(
 	var tenantSvc domain.TenantService
 	var tenantRepo domain.TenantRepository
 	var secRepo domain.UserSecurityRepository
+	var supplierSvc domain.SupplierService
+	var supplierRepo domain.SupplierRepository
 	for _, arg := range tenantServices {
 		if ts, ok := arg.(domain.TenantService); ok {
 			tenantSvc = ts
@@ -82,11 +84,21 @@ func SetupRouter(
 		if sr, ok := arg.(domain.UserSecurityRepository); ok {
 			secRepo = sr
 		}
+		if ss, ok := arg.(domain.SupplierService); ok {
+			supplierSvc = ss
+		}
+		if spr, ok := arg.(domain.SupplierRepository); ok {
+			supplierRepo = spr
+		}
 	}
 
 	if secRepo == nil {
 		secRepo = repository.NewMockUserSecurityRepository()
 	}
+	if supplierSvc == nil && supplierRepo != nil {
+		supplierSvc = service.NewSupplierService(supplierRepo, periodRepo)
+	}
+
 	authSvc := service.NewAuthService(secRepo)
 	authH := NewAuthHandler(authSvc)
 
@@ -104,10 +116,10 @@ func SetupRouter(
 	periodsGroup.Get("/:id/export/csv", exportH.ExportTransactionsCSV)
 	periodsGroup.Get("/:id/export/excel", exportH.ExportTransactionsExcel)
 	periodsGroup.Post("/:id/import/csv", importH.ImportTransactionsCSV)
-	periodsGroup.Post("/open", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
-	periodsGroup.Post("/open-next", middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
-	periodsGroup.Post("/:id/lock", middleware.IdempotencyMiddleware(idemRepo), periodH.LockPeriod)
-	periodsGroup.Post("/:id/unlock", middleware.IdempotencyMiddleware(idemRepo), periodH.UnlockPeriod)
+	periodsGroup.Post("/open", middleware.RequireRole(domain.RoleAdmin), middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
+	periodsGroup.Post("/open-next", middleware.RequireRole(domain.RoleAdmin), middleware.IdempotencyMiddleware(idemRepo), periodH.OpenNextPeriod)
+	periodsGroup.Post("/:id/lock", middleware.RequireRole(domain.RoleAdmin), middleware.IdempotencyMiddleware(idemRepo), periodH.LockPeriod)
+	periodsGroup.Post("/:id/unlock", middleware.RequireRole(domain.RoleAdmin), middleware.IdempotencyMiddleware(idemRepo), periodH.UnlockPeriod)
 	periodsGroup.Get("/:id/summary", periodH.GetPeriodSummary)
 	periodsGroup.Get("/:id/transactions", txH.ListTransactions)
 
@@ -115,6 +127,20 @@ func SetupRouter(
 	txGroup := api.Group("/transactions")
 	txGroup.Post("/", middleware.IdempotencyMiddleware(idemRepo), txH.CreateTransaction)
 	txGroup.Post("/:id/reverse", middleware.IdempotencyMiddleware(idemRepo), txH.ReverseTransaction)
+
+	// Supplier routes (Tedarikçi ve Cari Takip)
+	if supplierSvc != nil {
+		supH := NewSupplierHandler(supplierSvc)
+		supGroup := api.Group("/suppliers")
+		supGroup.Get("/", supH.ListSuppliers)
+		supGroup.Get("/summary", supH.GetSummary)
+		supGroup.Post("/", supH.CreateSupplier)
+		supGroup.Get("/transactions", supH.ListAllTransactions)
+		supGroup.Post("/transactions", supH.CreateTransaction)
+		supGroup.Post("/transactions/:id/reverse", middleware.IdempotencyMiddleware(idemRepo), supH.ReverseTransaction)
+		supGroup.Get("/:id/transactions", supH.ListSupplierTransactions)
+		supGroup.Post("/import/excel", supH.ImportExcel)
+	}
 
 	// Auth & User Security routes
 	authGroup := api.Group("/auth")
@@ -127,8 +153,8 @@ func SetupRouter(
 		tenantH := NewTenantHandler(tenantSvc)
 		tenantGroup := api.Group("/tenants")
 		tenantGroup.Get("/members", tenantH.ListMembers)
-		tenantGroup.Post("/members", tenantH.AddMember)
-		tenantGroup.Patch("/members/:user_id/role", tenantH.UpdateMemberRole)
-		tenantGroup.Delete("/members/:user_id", tenantH.RemoveMember)
+		tenantGroup.Post("/members", middleware.RequireRole(domain.RoleAdmin), tenantH.AddMember)
+		tenantGroup.Patch("/members/:user_id/role", middleware.RequireRole(domain.RoleAdmin), tenantH.UpdateMemberRole)
+		tenantGroup.Delete("/members/:user_id", middleware.RequireRole(domain.RoleAdmin), tenantH.RemoveMember)
 	}
 }

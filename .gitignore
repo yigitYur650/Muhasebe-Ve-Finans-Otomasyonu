@@ -1,9 +1,13 @@
 # Environment variables (NEVER commit secrets to git)
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+!.env.example
+!.env.production.example
+
 # Backups & dumps (NEVER commit client backups)
 backups/
 backend/backups/
@@ -31,6 +35,13 @@ yarn-error.log*
 *.out
 backend/cmd/api/api
 
+# Data files & logs
+*.xlsx
+*.xls
+*.csv
+*.log
+scratch/
+
 # OS / IDE
 .DS_Store
 Thumbs.db
@@ -38,3 +49,5 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.agents/
+

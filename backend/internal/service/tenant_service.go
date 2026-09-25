@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -40,7 +41,13 @@ func (s *DefaultTenantService) AddMember(
 		return domain.ErrInvalidRole
 	}
 
-	return s.tenantRepo.Create(ctx, &domain.Tenant{ID: tenantID})
+	return s.tenantRepo.AddMember(ctx, &domain.TenantMember{
+		ID:        uuid.New(),
+		TenantID:  tenantID,
+		UserID:    targetUserID,
+		Role:      role,
+		CreatedAt: time.Now(),
+	})
 }
 
 func (s *DefaultTenantService) UpdateMemberRole(
@@ -60,8 +67,13 @@ func (s *DefaultTenantService) UpdateMemberRole(
 		return domain.ErrInvalidRole
 	}
 
+	targetMember, err := s.tenantRepo.GetMember(ctx, tenantID, targetUserID)
+	if err != nil || targetMember == nil {
+		return domain.ErrNotFound
+	}
+
 	// Check last admin protection if demoting an admin to non-admin
-	if newRole != domain.RoleAdmin {
+	if targetMember.Role == domain.RoleAdmin && newRole != domain.RoleAdmin {
 		members, err := s.tenantRepo.GetMembersByTenantID(ctx, tenantID)
 		if err == nil {
 			adminCount := 0
@@ -71,15 +83,12 @@ func (s *DefaultTenantService) UpdateMemberRole(
 				}
 			}
 			if adminCount <= 1 {
-				targetMember, errT := s.tenantRepo.GetMember(ctx, tenantID, targetUserID)
-				if errT == nil && targetMember.Role == domain.RoleAdmin {
-					return domain.ErrCannotRemoveLastAdmin
-				}
+				return domain.ErrCannotRemoveLastAdmin
 			}
 		}
 	}
 
-	return nil
+	return s.tenantRepo.UpdateMemberRole(ctx, tenantID, targetUserID, newRole)
 }
 
 func (s *DefaultTenantService) RemoveMember(
@@ -115,5 +124,5 @@ func (s *DefaultTenantService) RemoveMember(
 		}
 	}
 
-	return nil
+	return s.tenantRepo.RemoveMember(ctx, tenantID, targetUserID)
 }

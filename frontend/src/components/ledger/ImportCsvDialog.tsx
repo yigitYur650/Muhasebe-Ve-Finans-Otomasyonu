@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -40,7 +41,17 @@ export function ImportCsvDialog({
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+      if (isExcel) {
+        setErrorMsg(
+          "Seçtiğiniz dosya bir Excel (.xlsx) tablosudur. Çok sayfalı Tedarikçi Cari Excel tablosunu yüklemek için lütfen 'Tedarikçi Cari' sekmesine geçip 'Excel İçe Aktar' seçeneğini kullanınız. Kasa Defteri için yalnızca .csv dosyası yükleyebilirsiniz."
+        );
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setSelectedFile(file);
       setErrorMsg(null);
       setSuccessMsg(null);
     }
@@ -67,8 +78,26 @@ export function ImportCsvDialog({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
+      // Retrieve auth session headers
+      let token = "";
+      if (typeof window !== "undefined") {
+        try {
+          const supabase = createClient();
+          const { data } = await supabase.auth.getSession();
+          if (data?.session?.access_token) {
+            token = data.session.access_token;
+          }
+        } catch {}
+      }
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(getApiUrl(`/periods/${periodId}/import/csv`), {
         method: "POST",
+        headers,
         body: formData,
       });
 

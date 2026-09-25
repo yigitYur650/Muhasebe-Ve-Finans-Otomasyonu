@@ -190,6 +190,47 @@
     "importError": "An error occurred during import",
     "error": "An error occurred during import",
     "invalid_format": "Invalid file format"
+  },
+  "navigation": {
+    "cashLedger": "Cash Ledger",
+    "suppliers": "Suppliers & Vendors",
+    "history": "Historical Periods"
+  },
+  "suppliers": {
+    "title": "Supplier & Vendor Ledger",
+    "description": "Purchases, payments and running balances for parts suppliers (Dual-Ledger Model).",
+    "allSuppliers": "All Suppliers",
+    "totalDebt": "Total Supplier Debt",
+    "totalPurchases": "Total Purchases",
+    "totalPayments": "Total Payments",
+    "activeCount": "Active Suppliers",
+    "balance": "Outstanding Balance",
+    "purchase": "Goods Purchased",
+    "payment": "Payment Made",
+    "newTransaction": "Add Supplier Transaction",
+    "importExcel": "Upload Excel (.xlsx)",
+    "importTitle": "Import Supplier Ledger from Excel",
+    "importDescription": "Import multi-column Excel sheets (Atiker, Prins, Asil Grup etc.) into the active period.",
+    "selectExcelFile": "Select Excel File (.xlsx)",
+    "sheetName": "Sheet Name (Optional)",
+    "sheetPlaceholder": "e.g. AĞUSTOS26 or leave blank",
+    "importSuccess": "Excel imported successfully",
+    "importSuccessSummary": "Imported {count} records ({purchase} TL purchases, {payment} TL payments).",
+    "invoiceNo": "Invoice No",
+    "customerName": "Customer / Name",
+    "documentStatus": "Document Status",
+    "date": "Date",
+    "direction": "Direction",
+    "amount": "Amount (TL)",
+    "description": "Description",
+    "recordsCount": "Transactions",
+    "noTransactions": "No records found for this supplier.",
+    "searchPlaceholder": "Search by invoice no, customer name or description...",
+    "allDirections": "All Types",
+    "purchasesOnly": "Purchases Only",
+    "paymentsOnly": "Payments Only",
+    "newSupplier": "New Supplier",
+    "supplierName": "Supplier / Company Name"
   }
 }
 

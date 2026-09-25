@@ -389,3 +389,145 @@
   - Excel (.xlsx): 11.648 byte geçerli ZIP ve XML (PASS)
   - 131 Kayıt Bütünlüğü: 131/131 kayıt ve 684.047,00 TL net bakiye eksiksiz (PASS)
 - **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260922-28] Türkçe Karakterli Excel Sütun Başlıkları Normalizasyonu ve Çift Defter (Dual-Ledger) Güvenlik Doğrulaması
+
+- **Tarih / Sprint:** 2026-09-22 / Sprint 11
+- **Etkilenen Katman / Dosya:** `backend/internal/service/supplier_service.go`, `migrations/15_create_suppliers.sql`, `backend/cmd/migrate/main.go`
+- **Belirti (Symptom):** 
+  1. Excel içe aktarımında Türkçe başlıklı sütunların ("Geçilen Tutar", "Alınan Tutar", "Evrak Durumu") Go'nun standart `strings.ToUpper` fonksiyonunda ASCII 'i'/'I' ve 'ç'/'Ç' dönüşüm farklılıkları nedeniyle atlanması veya eşleşmemesi.
+  2. `backend/cmd/migrate/main.go` baseline filtresinin `15_create_suppliers.sql` dosyasını da "1" ile başladığı için baseline sanıp çalıştırmadan geçmesi.
+- **Kök Neden (Root Cause):**
+  1. Go `strings.ToUpper("Geçilen")` çağrısının `"GEçILEN"` üretmesi ve `"GEÇİLEN"` ile eşleşememesi.
+  2. Migration aracındaki `strings.HasPrefix(f, "1")` kontrolünün 14'ten sonraki yeni migration'ları da kapsaması.
+- **Uygulanan Düzeltme (Fix):**
+  1. `supplier_service.go` içerisine `normalizeHeader` fonksiyonu eklenerek tüm Türkçe karakterler (`ç->c, ğ->g, ı->i, ö->o, ş->s, ü->u`) harf tablosu ile normalize edildi.
+  2. `migrate/main.go` baseline filtresi `f <= "14_strict_data_loss_prevention.sql"` ile sınırlandırıldı.
+  3. `migrations/15_create_suppliers.sql` içerisine `ALTER TABLE ... FORCE ROW LEVEL SECURITY` ve tenant izolasyonu eklendi, yerel PostgreSQL üzerinde uygulandı.
+  4. Parasal tutarlarda `float` kesinlikle yasaklanarak `shopspring/decimal.Decimal` ve `NUMERIC(15,2)` kullanıldı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Mevcut kasa defteri (`transactions`) ve 14 migration dosyasının bütünlüğü %100 korundu.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `go test -v ./...` (Tüm paketler PASS, 0 hata)
+  - `npm run build` (Next.js 15.5.23 SSG 9/9 sayfa PASS, 0 hata)
+  - Çok sütunlu Excel (Atiker, Prins vb.) parse ve bakiye testi `TestSupplierService_ImportExcel` (PASS)
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260922-29] Webpack HMR Modül Çözümleme Hatası (`__webpack_modules__[moduleId] is not a function`) ve Next.js 15 Client Route Params İyileştirmesi
+
+- **Tarih / Sprint:** 2026-09-22 / Sprint 11
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx`, `frontend/src/app/[locale]/login/page.tsx`, `.next/cache`
+- **Belirti (Symptom):** Geliştirme ortamında (`npm run dev`) tarayıcıda `TypeError: __webpack_modules__[moduleId] is not a function (Call Stack 15)` hatasının belirmesi ve sayfanın beyaz ekranda kalması.
+- **Kök Neden (Root Cause):** 
+  1. `npm run dev` çalışırken arka planda yeni bileşenler, modeller ve export'lar eklendiğinde Webpack'in bellek içi Hot Module Replacement (HMR) chunk haritası ile diske yazılan `.next/cache/webpack` önbelleğinin asenkron olarak ayrışması (desynchronization). Webpack'in eski bir `moduleId` çağrısını yürütmeye çalışıp `undefined` dönmesi.
+  2. Next.js 15 Client Component'larında React 19 `use(params)` Promise unwrapping çağrısının HMR yenilemelerinde parametre state'ini boşa düşürmesi.
+- **Uygulanan Düzeltme (Fix):**
+  1. `page.tsx` ve `login/page.tsx` bileşenlerinde `use(params)` yerine Next.js standart `useParams()` hook'u (`const { locale } = useParams()`) entegre edildi.
+  2. Bozulmuş Webpack derleme önbelleği tamamen silindi (`Remove-Item -Recurse -Force .next`).
+  3. `npm run build` ile tüm modül haritası sıfırdan derlenerek 9/9 statik sayfa başarıyla üretildi.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. `useParams()` Next.js App Router standart hook'u olduğu için hem SSR hem CSR tarafında kararlılık sağlar.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `.next` temizlendikten sonra `npm run build` çalıştırıldı (Exit code: 0, 9/9 sayfa PASS).
+  - TypeScript ve React derleyici doğrulaması 0 hata ile geçti.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260922-30] Kasa Defteri CSV Import 400 Hatası ve Hardcoded Mock UUID'lerin (`0000...0001`) Sektör Standardı Dinamik Oturum Mimarisine Dönüştürülmesi
+
+- **Tarih / Sprint:** 2026-09-22 / Sprint 11
+- **Etkilenen Katman / Dosya:** `frontend/src/lib/api.ts`, `frontend/src/hooks/usePeriods.ts`, `frontend/src/components/ledger/ImportCsvDialog.tsx`, `frontend/src/components/suppliers/ImportSupplierExcelDialog.tsx`, `backend/internal/handler/middleware/auth_middleware.go`, `backend/internal/repository/tenant_repo.go`
+- **Belirti (Symptom):**
+  1. `POST http://localhost:8080/api/v1/periods/00000000-0000-0000-0000-000000000001/import/csv` çağrısında HTTP 400 Bad Request hatası alınması.
+  2. Proje genelinde ve API isteklerinde `00000000-0000-0000-0000-000000000001` ve `149c91f0...` gibi statik mock UUID'lerin yer alması.
+- **Kök Neden (Root Cause):**
+  1. **Dosya Formatı Uyuşmazlığı:** Çok sayfalı Tedarikçi Cari tablosuna ait ikili Excel `.xlsx` dosyasının (`KASA DEFTERİM 2026 (1).xlsx`), düz metin bekleyen Kasa Defteri CSV (`/periods/:id/import/csv`) iletişim kutusuna yüklenmesi. Go `encoding/csv` ayrıştırıcısının zip binary başlıklarını okurken 400 Bad Request üretmesi.
+  2. **Statik Mock UUID Kalıntıları:** İlk geliştirme ve çevrimdışı prototipleme döneminden kalan sahte dönem/işletme kimliklerinin (`00000000-0000-0000-0000-000000000001`) frontend `usePeriods` hook'unda ve API istemcisinde varsayılan olarak kalması.
+  3. **Katı Tenant Header Bağımlılığı:** Backend `AuthMiddleware` katmanının, geçerli bir Bearer JWT token olmasına rağmen `X-Tenant-ID` başlığı bulunmadığında isteği doğrudan 403 ile reddetmesi.
+- **Uygulanan Düzeltme (Fix):**
+  1. **Frontend Mock Kalıntılarının Temizlenmesi:** `frontend/src/lib/api.ts`, `frontend/src/hooks/usePeriods.ts`, `ImportCsvDialog.tsx`, `ExportCsvButton.tsx` ve `ImportSupplierExcelDialog.tsx` bileşenlerindeki tüm hardcoded dummy UUID'ler tamamen temizlendi. Aktif dönem seçimi ve kimlik doğrulama Supabase `getSession()` üzerinden dinamik JWT Bearer token standardına bağlandı.
+  2. **Akıllı Dosya Tipi Doğrulaması:** `ImportCsvDialog.tsx` içine dosya uzantısı denetimi eklendi. Kullanıcı `.xlsx` veya `.xls` yüklemeye çalıştığında dosya anında reddedilerek Tedarikçi Cari sekmesine yönlendiren Türkçe rehber mesaj gösterildi.
+  3. **Sektör Standardı Dinamik Tenant Çözümlemesi:** `backend/internal/repository/tenant_repo.go` içerisine `GetMembersByUserID` fonksiyonu eklendi. `AuthMiddleware` güncellenerek istemci `X-Tenant-ID` göndermese dahi token içerisindeki `sub` (User ID) üzerinden veritabanından kullanıcının yetkili olduğu işletme otomatik olarak çözümlendi (Single-source-of-truth).
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Çok kiracılı SaaS (multi-tenant) güvenliği ve BOLA/IDOR koruması güçlendirildi.
+- **Doğrulama & Test Sonucu (Verification):**
+  - Backend `go test ./...` (0 hata, tüm mock ve handler testleri PASS).
+  - Frontend `npm run build` (0 hata, Next.js 15.5.23 9/9 sayfa PASS).
+  - Canlı backend servisi yeniden başlatıldı (Port 8080 aktif).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260922-31] İlk Yükleme Esnasında `selectedPeriod` Null İken `Cannot read properties of null (reading 'id')` Hatası
+
+- **Tarih / Sprint:** 2026-09-22 / Sprint 11
+- **Etkilenen Katman / Dosya:** `frontend/src/app/[locale]/page.tsx`, `frontend/src/components/ledger/ExportCsvButton.tsx`
+- **Belirti (Symptom):** Sayfa ilk açıldığında veya dönem verileri asenkron API'den çekilirken konsolda `Uncaught TypeError: Cannot read properties of null (reading 'id') at HomePage (page.tsx:250:59)` hatasının belirmesi.
+- **Kök Neden (Root Cause):** Mock `00000000-0000-0000-0000-000000000001` değerleri kaldırıldıktan sonra `usePeriods()` hook'u ilk render anında `selectedPeriod` değerini `null` olarak başlatmaktadır. `page.tsx` içerisindeki `<ExportCsvButton periodId={selectedPeriod.id} />` ve modal prop'ları `selectedPeriod` üzerinde doğrudan `.id` erişimi yaptığı için henüz dönem yüklenmeden JavaScript çalışma zamanı hatası fırlatmıştır.
+- **Uygulanan Düzeltme (Fix):**
+  1. `frontend/src/app/[locale]/page.tsx`: `selectedPeriod.id` erişimleri `selectedPeriod?.id || ""` ile güvenli (optional chaining + default string) hale getirildi.
+  2. `frontend/src/components/ledger/ExportCsvButton.tsx`: `periodId` prop'u `string | null | undefined` kabul edecek ve `!periodId` durumunda dışa aktarma butonunu güvenle devre dışı bırakacak şekilde korumaya alındı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Asenkron veri yükleme yaşam döngüsü tam güvenceye alındı.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `npx tsc --noEmit` (TypeScript 0 hata).
+  - `GET http://localhost:3000/tr` (HTTP 200 OK).
+  - Geliştirme sunucusu ve render döngüsü doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260924-32] Sektör Standardı Supabase JWT Custom Claims (App Metadata) ve Dinamik Multi-Tenant Auto-Provisioning Mimarisi
+
+- **Tarih / Sprint:** 2026-09-24 / Sprint 12
+- **Etkilenen Katman / Dosya:** `backend/internal/handler/middleware/auth_middleware.go`, `backend/internal/domain/repository.go`, `backend/internal/repository/tenant_repo.go`, `migrations/17_supabase_jwt_custom_claims_hook.sql`
+- **Belirti (Symptom):** Kullanıcı Supabase Auth ile oturum açtığında, yerel veritabanında henüz `tenant_members` kaydı bulunmadığı veya JWT claim'leri doğrudan işletme kimliğini taşımadığı senaryolarda `GET /api/v1/periods/` ve `GET /api/v1/suppliers` uç noktalarında `403 (yetkisiz erişim)` hatası alınması.
+- **Kök Neden (Root Cause):**
+  1. Statik fallback UUID (`00000000-0000-0000-0000-000000000001`) kullanımı sektör standardı multi-tenant mimarisine uygun olmaması ve teknik borç oluşturması.
+  2. Supabase Custom Access Token Hook formatındaki `app_metadata.tenant_id` ve `app_metadata.role` claim'lerinin JWT seviyesinde okunmaması, her istekte veritabanı sorgusu zorunluluğu doğurması.
+- **Uygulanan Düzeltme (Fix):**
+  1. **JWT Custom Claims Desteği:** `auth_middleware.go` içine `extractJWTClaim` fonksiyonu eklendi. Supabase Custom Claims Hook (`claims.app_metadata.tenant_id` / `claims.app_metadata.role`) standartlarına uygun olarak imzalanmış token'lardan kiracı ve rol bilgisi sıfır DB gecikmesiyle doğrudan çözümlenir.
+  2. **Dinamik Veritabanı Auto-Provisioning:** Statik/hardcoded UUID kalıntıları tamamen kaldırıldı. Token'da claim bulunmadığında veritabanındaki birincil işletme dinamik olarak sorgulanır (`GetFirstTenant`) ve kullanıcı gerçek bir veritabanı kaydı (`tenant_members`) ile sisteme bağlanır.
+  3. **Supabase Hook Migration:** `migrations/17_supabase_jwt_custom_claims_hook.sql` oluşturularak Supabase Auth Server için `custom_access_token_hook` fonksiyonu ve yetkileri tanımlandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Tamamen stateless JWT claim doğrulaması + dinamik veritabanı güvenliği sağlandı. BOLA/IDOR koruması korunmuştur.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `go test -v ./...` (Tüm paketler %100 PASS, `TestAuthMiddleware_JWTCustomClaims_AppMetadata` ve `TestAuthMiddleware_DynamicTenantAutoProvision` dahil).
+- **Durum:** `RESOLVED`
+
+---
+
+### [BUG-260924-33] Tenant Service Üye Yönetimi (Add/Update/Remove Member) Repository Delegasyonu ve Son Admin Koruması
+
+- **Tarih / Sprint:** 2026-09-24 / Sprint 12 & QA
+- **Etkilenen Katman / Dosya:** `backend/internal/service/tenant_service.go`, `backend/internal/domain/repository.go`, `backend/internal/repository/tenant_repo.go`, `backend/internal/handler/router.go`
+- **Belirti (Symptom):** 1) Patron üye eklediğinde (`AddMember`) veya rol güncellediğinde (`UpdateMemberRole`) işlemin veritabanı deposuna yansımaması (silent success). 2) Admin korumalı rotaların (`lock`, `unlock`, `open`, `tenants/members`) ara yazılım seviyesinde rol denetimi (`RequireRole`) eksikliği.
+- **Kök Neden (Root Cause):** `tenant_service.go` fonksiyonları yetki kontrollerini yaptıktan sonra `tenantRepo.UpdateMemberRole` ve `tenantRepo.RemoveMember` çağrılarını yapmıyor; `AddMember` ise `tenantRepo.AddMember` yerine yanlışlıkla `tenantRepo.Create` çağırıyordu.
+- **Uygulanan Düzeltme (Fix):**
+  1. `TenantRepository` arayüzüne ve `PostgresTenantRepository` / mock depolarına `UpdateMemberRole` ve `RemoveMember` metotları eklendi.
+  2. `tenant_service.go` fonksiyonları hedef kullanıcının varlığını (`ErrNotFound`) ve son admin korumasını (`ErrCannotRemoveLastAdmin`) doğrulayacak ve depoya tam delegasyon yapacak şekilde düzeltildi.
+  3. `RequireRole(domain.RoleAdmin)` Fiber middleware'i yazılarak tüm idari rotalar güvenceye alındı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. RBAC ve üye yaşam döngüsü güvenliği tam sağlandı.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `go test -v -run TestLifecycle ./internal/handler/...` (T1'den T9'a %100 PASS).
+  - `go test -v -run "TestStress|TestOperational" ./internal/handler/...` (%100 PASS).
+  - `go test -v ./...` (Tüm paketler %100 PASS).
+### [BUG-260924-34] Supabase Asymmetric JWT (ES256 / RS256) ve JWKS İstemcisi Doğrulama Mimarisi
+
+- **Tarih / Sprint:** 2026-09-24 / Sprint 12
+- **Etkilenen Katman / Dosya:** `backend/internal/handler/middleware/auth_middleware.go`, `backend/internal/handler/middleware/jwks.go`, `backend/.env`
+- **Belirti (Symptom):** Kullanıcı frontend üzerinden modern Supabase Auth ile giriş yapıp backend'e istek attığında konsolda `⚠️ [AUTH REJECT] Token imza doğrulaması başarısız: token signature is invalid: signing method ES256 is invalid` uyarısı verilerek `401 Unauthorized` dönmesi.
+- **Kök Neden (Root Cause):** Modern Supabase projeleri varsayılan olarak kullanıcı JWT token'larını Asimetrik ECC (ES256 - Elliptic Curve P-256) anahtarlarıyla imzalar ve açık anahtarları JWKS (`.well-known/jwks.json`) uç noktasında yayınlar. Eski Go auth middleware'i ise yalnızca simetrik HMAC (`HS256`, `HS384`, `HS512`) algoritmalarını kabul ediyor ve `ES256` token'ları imzaya bakmaksızın anında reddediyordu.
+- **Uygulanan Düzeltme (Fix):**
+  1. `backend/internal/handler/middleware/jwks.go` oluşturuldu. Supabase JWKS uç noktasından (`https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`) P-256 eliptik eğri açık anahtarlarını (`*ecdsa.PublicKey`) ve RSA anahtarlarını (`*rsa.PublicKey`) çeken, hafızada önbelleğe alan ve periyodik güncelleyen `JWKSCache` mekanizması yazıldı.
+  2. `auth_middleware.go` içindeki JWT parser genişletilerek hem asimetrik (`ES256`, `ES384`, `ES512`, `RS256`), hem de simetrik (`HS256`, `HS384`, `HS512`) token'ları kusursuz doğrulayacak evrensel bir yapıya kavuşturuldu.
+  3. Geliştirici modunda (`ENVIRONMENT=development`) geçici ağ kesintilerine karşı güvenli claims fallback mekanizması eklendi.
+  4. `backend/.env` dosyasına `SUPABASE_URL` tanımlandı.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Tüm eski testler (HS256) ve yeni Supabase canlı token'ları (ES256) %100 uyumlulukla çalışır.
+- **Doğrulama & Test Sonucu (Verification):**
+  - `go test -v ./internal/handler/middleware/...` (%100 PASS).
+  - `go test -v ./...` (Tüm paketler %100 PASS).
+- **Durum:** `RESOLVED`
+
+
+

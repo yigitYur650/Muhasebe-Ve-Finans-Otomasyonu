@@ -22,7 +22,7 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 		errCode = "HTTP_ERROR"
 	} else {
 		switch {
-		case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrTransactionNotFound), errors.Is(err, domain.ErrPeriodNotFound), errors.Is(err, domain.ErrTenantNotFound):
+		case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrTransactionNotFound), errors.Is(err, domain.ErrPeriodNotFound), errors.Is(err, domain.ErrTenantNotFound), errors.Is(err, domain.ErrSupplierNotFound):
 			code = fiber.StatusNotFound
 			errCode = "NOT_FOUND"
 			errMsg = err.Error()
@@ -42,9 +42,9 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 			errCode = "TRANSACTION_ALREADY_REVERSED"
 			errMsg = err.Error()
 
-		case errors.Is(err, domain.ErrDuplicateIdempotencyKey):
+		case errors.Is(err, domain.ErrDuplicateIdempotencyKey), errors.Is(err, domain.ErrDuplicateSupplierName):
 			code = fiber.StatusConflict
-			errCode = "DUPLICATE_IDEMPOTENCY_KEY"
+			errCode = "DUPLICATE_KEY"
 			errMsg = err.Error()
 
 		case errors.Is(err, domain.ErrPeriodAlreadyExists):
@@ -57,7 +57,7 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 			errCode = "INVALID_AMOUNT"
 			errMsg = err.Error()
 
-		case errors.Is(err, domain.ErrInvalidDirection), errors.Is(err, domain.ErrInvalidChannel), errors.Is(err, domain.ErrInvalidRole):
+		case errors.Is(err, domain.ErrInvalidDirection), errors.Is(err, domain.ErrInvalidChannel), errors.Is(err, domain.ErrInvalidRole), errors.Is(err, domain.ErrInvalidSupplierDirection):
 			code = fiber.StatusBadRequest
 			errCode = "INVALID_INPUT"
 			errMsg = err.Error()

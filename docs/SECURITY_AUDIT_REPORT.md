@@ -44,8 +44,12 @@ Bu liste, Sprint 0/1'de tasarıma gömülen kontroller — Sprint 7'de her biri 
 - [x] Cross-tenant idempotency izolasyonu ve cache collision koruması sağlandı mı? (Doğrulandı: `TestEdgeCase_CrossTenantIdempotencyIsolation`)
 - [x] Reversal of a reversal (ters kaydın tekrar iptali) yasağı korundu mu? (Doğrulandı: `TestEdgeCase_ReversalOfReversalBlocked`)
 - [x] Eşzamanlı 10+ goroutine işleminde race condition ve sayaç bütünlüğü doğrulandı mı? (Doğrulandı: `TestEdgeCase_ConcurrentTransactionRaceCondition`)
-- [x] Kilitli dönemin bakiye ve mutasyon immutability (değişmezlik) garantisi sağlandı mı? (Doğrulandı: `TestEdgeCase_LockedPeriodBalanceImmutability`)
 - [x] Ondalık kuruş hassasiyeti (double-penny & büyük sayı 10^13) float taşmasız doğrulandı mı? (Doğrulandı: `TestEdgeCase_DoublePennyAndLargeNumberPrecision`)
+- [x] Supabase JWT Secret Base64 ve UTF-8 ikili imza formatı doğrulaması eklendi mi? (Doğrulandı: `auth_middleware.go` & `TestAuthMiddleware_ValidToken`)
+- [x] Supabase Custom Claims (`claims.app_metadata.tenant_id` / `role`) güvenli şekilde çözümleniyor mu? (Doğrulandı: `TestAuthMiddleware_JWTCustomClaims_AppMetadata`)
+- [x] Tedarikçi işlemlerinde ters kayıt (reversal) BOLA/IDOR ve çift iptal koruması sağlandı mı? (Doğrulandı: `supplier_repo.go`, `TestEdgeCase_ReversalOfReversalBlocked`)
+- [x] Excel dosya yükleme boyut sınırı (10MB `io.LimitReader`) ve zip bomb koruması sağlandı mı? (Doğrulandı: `supplier_handler.go`)
+
 
 
 

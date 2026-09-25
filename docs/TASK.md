@@ -122,15 +122,31 @@
 - [x] Frontend `ExportCsvButton.tsx` güncellenerek lisanssız/görüntüleme modundaki Excel'lerde dahi bozulmayan hazır `.xlsx` indirme aktif edilir (PASS, 2026-09-13)
 - [x] `BUG_AND_FIX.md` ve `TECHNICAL_DEBT_AND_MOCK_AUDIT.md` güncel denetim bulgularıyla senkronize edilir (PASS, 2026-09-13)
 
-## Sprint 10 — Akıllı Migration Yönetimi, TRUNCATE Yasağı ve Çevrimdışı Yedekleme (Offline Backup)
+## Sprint 11 — Çift Defter (Dual-Ledger) Tedarikçi & Cari Takip ve Excel İçe Aktarma Motoru
 
-- [x] PostgreSQL `public.schema_migrations` tablosu oluşturulur (PASS, 2026-09-13)
-- [x] `backend/cmd/migrate/main.go` akıllı migration koşucusuna dönüştürülür: baseline tespiti, sıralı çalışma ve transaction güvencesi (PASS, 2026-09-13)
-- [x] `migrations/14_strict_data_loss_prevention.sql` geliştirilerek canlıya uygulanır: `TRUNCATE` yasağı trigger'ı (`trg_prevent_transaction_truncate`) ve `ON DELETE RESTRICT` foreign key koruması (PASS, 2026-09-13)
-- [x] Çevrimdışı tam veritabanı yedekleme aracı (`backend/cmd/backup/main.go`) geliştirilir; tek komutla tüm canlı defterin `.json` ve `.sql` dökümü `backups/` klasörüne başarıyla alınır (PASS, 2026-09-13)
+- [x] `migrations/15_create_suppliers.sql` oluşturulur ve yerel PostgreSQL üzerinde uygulanır: `suppliers` ve `supplier_transactions` tabloları, `FORCE ROW LEVEL SECURITY` politikaları ve `tenant_id IN (SELECT public.current_tenant_ids())` tam tenant izolasyonu (PASS, 2026-09-22)
+- [x] Parasal float yasağına titizlikle uyulur: Go tarafında `shopspring/decimal.Decimal`, veritabanında `NUMERIC(15,2)` kullanılır (PASS, 2026-09-22)
+- [x] Go Clean Architecture katmanları: `domain/supplier.go`, `repository/supplier_repo.go`, `service/supplier_service.go`, `handler/supplier_handler.go` ve Fiber router entegrasyonu (PASS, 2026-09-22)
+- [x] Native Excel İçe Aktarma Motoru (`github.com/xuri/excelize/v2`): 36 sayfalık Kasa Defterindeki çoklu firma bloklarını (`ATİKER`, `PRİNS`, `ASİL GRUP`, `PARÇACI UĞUR ABİ`, `FİLTRECİ`) dinamik algılayıp `purchase` (Alınan Mal) ve `payment` (Geçilen Ödeme) olarak kuruş hassasiyetinde `pgx.Tx` transaction içinde toplu kaydetme (PASS, 2026-09-22)
+- [x] Frontend Çift Defter arayüzü: Üstte `[ 💰 Kasa Defteri ]` ve `[ 🚚 Tedarikçiler & Parçacılar ]` sekmeleri, tedarikçi bakiye özet kartları, detaylı cari listesi ve `ImportSupplierExcelDialog.tsx` modalı (PASS, 2026-09-22)
+- [x] Tüm kelimeler `tr.json` ve `en.json` dosyalarına `suppliers` ve `navigation` namespace'leri altında sıfır hardcoded metin kuralıyla eklenir (PASS, 2026-09-22)
+- [x] Terminal doğrulaması: `cd backend && go test -v ./...` ve `frontend` dizininde `npm run build` 0 hata ile başarıyla geçer (PASS, 2026-09-22)
+
+## Sprint 12 — Tedarikçiler & Parçacılar Ters Kayıt (Reversal), Sektör Standardı JWT Claims ve Geliştirici Bypass Modu
+
+- [x] Tedarikçi & Parçacı modülünde Append-Only Ters Kayıt (Reversal) mekanizması: `migrations/16_add_reversed_by_to_supplier_transactions.sql` ile `reversed_by` sütunu ve self-reference endeksi oluşturulur (PASS, 2026-09-24)
+- [x] Go Backend Tedarikçi Ters Kayıt atomik transaction (`pgx.Tx`), çift iptal engeli (`422 Unprocessable Entity`) ve bakiye mutasyonu `domain/supplier.go`, `repository/supplier_repo.go`, `service/supplier_service.go`, `handler/supplier_handler.go` katmanlarında uygulanır (PASS, 2026-09-24)
+- [x] Frontend `ReverseSupplierTransactionDialog.tsx` modalı, `SupplierLedgerTable.tsx` üzerinde `[TERS KAYIT]` / `[İPTAL EDİLDİ]` rozetleri, filtreleme ve iptal aksiyonu entegre edilir (PASS, 2026-09-24)
+- [x] Akıllı Excel eşleme (`matchSheetForPeriod`) tek sayfalı dosyalar (`MAYIS25`, `KASA`) ve Türkçe ay isimleri desteği ile güçlendirilir; 10MB `io.LimitReader` boyutu sınırlanır (PASS, 2026-09-24)
+- [x] Sektör Standardı Supabase JWT Custom Claims / App Metadata (`claims.app_metadata.tenant_id` / `claims.app_metadata.role`) desteği `auth_middleware.go` içine eklenir; `migrations/17_supabase_jwt_custom_claims_hook.sql` tanımlanır (PASS, 2026-09-24)
+- [x] Base64 kodlu 64-baytlık Supabase JWT secret anahtarları (`Lw7HcEdLRo+...==`) ve düz UTF-8 anahtarlar için çift katmanlı çözücü eklenir (PASS, 2026-09-24)
+- [x] `ENVIRONMENT=development` geliştirici modu (Developer Bypass) eklenir; token bulunmadığında yerel admin oturumuyla istekler kesintisiz karşılanır (PASS, 2026-09-24)
+- [x] Test doğrulamaları: `go test -v ./...` %100 PASS (Tüm birim, entegrasyon ve custom claim testleri dahil) (PASS, 2026-09-24)
+- [x] Dokümantasyon (`RELEASE_NOTES.md`, `PROJECT_MAP_FOR_LLM.md`, `BUG_AND_FIX.md`, `SECURITY_AUDIT_REPORT.md`, `TASK.md`) güncellenir (PASS, 2026-09-24)
 
 ---
 
 ## Not
 Sprint 0'daki "AÇIK KARAR" maddesi onaylanmadan Sprint 1 şema tasarımına başlanmamalı — bkz. PROJECT_BRIEF.md Bölüm 3.
+
 

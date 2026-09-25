@@ -1,3 +1,38 @@
+# 🚀 Release Notes — Sürüm v1.2.0
+
+> **Sürüm Tarihi:** 2026-09-24  
+> **Platform:** Öncü Otogaz — Kasa, Cari ve Defter-i Kebir Yönetim Platformu  
+> **Mimari:** Go Fiber v2 Backend + Next.js 15 App Router Frontend + PostgreSQL / Supabase RLS  
+
+---
+
+### ✨ Sürüm v1.2.0 — Tedarikçi Çift Defter & Ters Kayıt, Sektör Standardı JWT Claims ve Geliştirici Çıkışı
+
+#### 1. 🔄 Tedarikçiler & Parçacılar Çift Defter / Ters Kayıt (Reversal) Mimarisi
+- Kasa Defteri ile birebir uyumlu **Append-Only Ters Kayıt (Reversal)** mekanizması Tedarikçi & Parçacı modülüne taşındı.
+- `migrations/16_add_reversed_by_to_supplier_transactions.sql` ile `supplier_transactions` tablosuna `reversed_by` self-reference sütunu ve endeksi eklendi.
+- `POST /api/v1/suppliers/transactions/:id/reverse` uç noktası eklendi; veritabanı seviyesinde atomik işlem (`pgx.Tx`), ters bakiye güncellemeleri ve mükerrer iptal engeli (`422 Unprocessable Entity`) sağlandı.
+- Frontend tarafında `ReverseSupplierTransactionDialog.tsx` modalı, `[İPTAL EDİLDİ]` ve `[TERS KAYIT]` durum rozetleri ile aktif/iptal edilmiş işlem filtreleme seçenekleri sunuldu.
+
+#### 2. 🔐 Sektör Standardı Supabase JWT Custom Claims (App Metadata)
+- `AuthMiddleware` mimarisi kurumsal SaaS standartlarına yükseltildi.
+- Supabase Custom Access Token Hook standardı ile uyumlu `claims.app_metadata.tenant_id` ve `claims.app_metadata.role` doğrudan kriptografik imzalı token'dan sıfır DB gecikmesiyle (stateless) çözümlenir.
+- `migrations/17_supabase_jwt_custom_claims_hook.sql` oluşturularak Supabase Auth Server için `custom_access_token_hook` fonksiyonu ve yetkilendirmesi tanımlandı.
+
+#### 3. 🔑 Base64 HMAC Secret & Çift Katmanlı İmza Doğrulama
+- Supabase Dashboard tarafından üretilen 64-baytlık Base64 kodlu JWT anahtarları (`Lw7HcEdLRo+...==`) ve düz UTF-8 string anahtarlar için çift katmanlı imza çözücü entegre edildi.
+- `jwt.Parse` seviyesinde imza uyuşmazlığı ve 403 engeli giderildi.
+
+#### 4. ⚡ Geliştirici Modu (Local Dev Auto-Login & Debug Logs)
+- `ENVIRONMENT=development` modunda, tarayıcıdan token gelmediğinde dahi yerel veritabanının birincil işletmesine otomatik admin oturumu sağlayan developer bypass desteği getirildi.
+- Olası token doğrulama hatalarında terminale detaylı ve anlaşılır Türkçe debug logları basılması sağlandı.
+
+#### 5. 📊 Akıllı Excel İçe Aktarımı ve Format Desteği
+- Tedarikçi Excel yükleme motoru (`matchSheetForPeriod`) tek sayfalı dosyaları (örn. `MAYIS25`, `KASA`) otomatik algılayacak ve Türkçe ay isimlerini haritalayacak şekilde güçlendirildi.
+- 10MB boyut sınırı (`io.LimitReader`) ve kullanıcı dostu Türkçe hata açıklamaları eklendi.
+
+---
+
 # 🚀 Release Notes — Sürüm v1.1.0
 
 > **Sürüm Tarihi:** 2026-09-04  

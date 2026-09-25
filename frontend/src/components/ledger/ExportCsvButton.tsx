@@ -15,17 +15,18 @@ import { getApiUrl } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface ExportCsvButtonProps {
-  periodId: string;
-  periodLabel: string;
+  periodId?: string | null;
+  periodLabel?: string;
 }
 
-export function ExportCsvButton({ periodId, periodLabel }: ExportCsvButtonProps) {
+export function ExportCsvButton({ periodId, periodLabel = "" }: ExportCsvButtonProps) {
   const t = useTranslations("import_export");
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportMode, setExportMode] = useState<"active" | "all" | "csv" | null>(null);
 
   const handleDownload = async (status: "active" | "all", format: "excel" | "csv" = "excel") => {
+    if (!periodId) return;
     setIsExporting(true);
     setExportMode(format === "csv" ? "csv" : status);
     try {
@@ -38,18 +39,13 @@ export function ExportCsvButton({ periodId, periodLabel }: ExportCsvButtonProps)
           const { data } = await supabase.auth.getSession();
           if (data?.session?.access_token) {
             authToken = data.session.access_token;
-            userId = data.session.user?.id;
           }
         } catch {
           // fallback
         }
       }
 
-      const headers: Record<string, string> = {
-        "X-Tenant-ID": "00000000-0000-0000-0000-000000000001",
-        "X-User-ID": userId || "149c91f0-0d03-4e3a-81d7-0bc5688c01b0",
-        "X-User-Role": "admin",
-      };
+      const headers: Record<string, string> = {};
 
       if (authToken) {
         headers["Authorization"] = `Bearer ${authToken}`;

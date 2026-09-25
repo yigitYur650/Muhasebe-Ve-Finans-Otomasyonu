@@ -9,9 +9,14 @@ import (
 // TenantRepository defines database operations for tenants and members.
 type TenantRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
+	GetFirstTenant(ctx context.Context) (*Tenant, error)
 	Create(ctx context.Context, tenant *Tenant) error
 	GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*TenantMember, error)
 	GetMembersByTenantID(ctx context.Context, tenantID uuid.UUID) ([]TenantMember, error)
+	GetMembersByUserID(ctx context.Context, userID uuid.UUID) ([]TenantMember, error)
+	AddMember(ctx context.Context, member *TenantMember) error
+	UpdateMemberRole(ctx context.Context, tenantID, userID uuid.UUID, role Role) error
+	RemoveMember(ctx context.Context, tenantID, userID uuid.UUID) error
 }
 
 // PeriodRepository defines database operations for financial periods.

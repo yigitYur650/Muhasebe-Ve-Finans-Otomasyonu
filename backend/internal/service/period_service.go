@@ -49,6 +49,10 @@ func (s *DefaultPeriodService) LockPeriod(ctx context.Context, periodID uuid.UUI
 		return err
 	}
 
+	if period.IsLocked() {
+		return domain.ErrPeriodLocked
+	}
+
 	member, err := s.tenantRepo.GetMember(ctx, period.TenantID, requestingUserID)
 	if err != nil {
 		return err

@@ -23,20 +23,18 @@ export interface PeriodHistoryItem {
 }
 
 export function usePeriods(activeTab: "ledger" | "history") {
-  const [periods, setPeriods] = useState<PeriodOption[]>([
-    { id: "00000000-0000-0000-0000-000000000001", label: "2026-08", status: "open", startingBalance: "0.00" },
-  ]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("00000000-0000-0000-0000-000000000001");
+  const [periods, setPeriods] = useState<PeriodOption[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const [historyItems, setHistoryItems] = useState<PeriodHistoryItem[]>([]);
   const [periodModalMode, setPeriodModalMode] = useState<"lock" | "open" | null>(null);
 
   const selectedPeriod = useMemo(
-    () => periods.find((p) => p.id === selectedPeriodId) || periods[0],
+    () => periods.find((p) => p.id === selectedPeriodId) || periods[0] || null,
     [periods, selectedPeriodId]
   );
 
   const periodStatus: "open" | "locked" = (selectedPeriod?.status as "open" | "locked") || "open";
-  const periodLabel = selectedPeriod?.label || "2026-08";
+  const periodLabel = selectedPeriod?.label || "";
   const startingBalance = selectedPeriod?.startingBalance || "0.00";
 
   // Fetch all periods

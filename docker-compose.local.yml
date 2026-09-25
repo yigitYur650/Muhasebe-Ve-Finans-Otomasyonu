@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  local-postgres:
+    image: postgres:16-alpine
+    container_name: deftersystem-local-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./backups/init_local_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - local_pgdata:/var/lib/postgresql/data
+
+  backend-local:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deftersystem-backend-local
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgres://postgres:postgrespassword@local-postgres:5432/postgres?sslmode=disable
+      - SUPABASE_JWT_SECRET=local-development-secret-key-1234567890
+    depends_on:
+      - local-postgres
+    restart: unless-stopped
+
+  frontend-local:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: deftersystem-frontend-local
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=https://lvsngrrdzjhbawhcuzqz.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2c25ncnJkempoYmF3aGN1enF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MzAxMzEsImV4cCI6MjEwNDEwNjEzMX0.yilfkY7aUMr4j5Q0oj2oH8kGH4fIelCNZKDjo_VOfls
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+    depends_on:
+      - backend-local
+    restart: unless-stopped
+
+volumes:
+  local_pgdata:

@@ -191,6 +191,47 @@
     "importError": "Aktarım sırasında hata oluştu",
     "error": "Aktarım sırasında hata oluştu",
     "invalid_format": "Geçersiz dosya formatı"
+  },
+  "navigation": {
+    "cashLedger": "Kasa Defteri",
+    "suppliers": "Tedarikçiler & Parçacılar",
+    "history": "Geçmiş Dönemler"
+  },
+  "suppliers": {
+    "title": "Tedarikçi ve Cari Takip",
+    "description": "Toptancı ve parçacılara ait alış, ödeme ve bakiye çetelesi (Çift Defter Modeli).",
+    "allSuppliers": "Tüm Tedarikçiler",
+    "totalDebt": "Toplam Tedarikçi Borcu",
+    "totalPurchases": "Toplam Alınan Mal",
+    "totalPayments": "Toplam Yapılan Ödeme",
+    "activeCount": "Aktif Tedarikçi",
+    "balance": "Kalan Borç Bakiyesi",
+    "purchase": "Alınan Mal (Borç Artışı)",
+    "payment": "Geçilen Ödeme",
+    "newTransaction": "Cari Hareket Ekle",
+    "importExcel": "Excel (.xlsx) Yükle",
+    "importTitle": "Tedarikçi Çetelesi Excel İçe Aktarımı",
+    "importDescription": "Çok sütunlu Excel sayfasındaki (Atiker, Prins, Asil Grup vb.) cari hareketleri döneme aktarın.",
+    "selectExcelFile": "Excel Dosyası (.xlsx) Seç",
+    "sheetName": "Sayfa Adı (İsteğe Bağlı)",
+    "sheetPlaceholder": "Örn: AĞUSTOS26 veya boş bırakın",
+    "importSuccess": "Excel başarıyla aktarıldı",
+    "importSuccessSummary": "{count} adet cari hareket ({purchase} TL mal alımı, {payment} TL ödeme) başarıyla kaydedildi.",
+    "invoiceNo": "Fatura No",
+    "customerName": "Ad Soyad / Müşteri",
+    "documentStatus": "Evrak Durumu",
+    "date": "Tarih",
+    "direction": "Hareket Yönü",
+    "amount": "Tutar (TL)",
+    "description": "Açıklama",
+    "recordsCount": "Cari Hareket",
+    "noTransactions": "Bu tedarikçiye ait kayıt bulunamadı.",
+    "searchPlaceholder": "Fatura no, müşteri adı veya açıklama ile ara...",
+    "allDirections": "Tüm Hareketler",
+    "purchasesOnly": "Yalnızca Alınan Mallar",
+    "paymentsOnly": "Yalnızca Ödemeler",
+    "newSupplier": "Yeni Tedarikçi",
+    "supplierName": "Tedarikçi / Firma Adı"
   }
 }
 

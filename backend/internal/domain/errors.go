@@ -17,4 +17,7 @@ var (
 	ErrPeriodAlreadyExists        = errors.New("bu dönem etiketi zaten mevcut")
 	ErrTransactionAlreadyReversed = errors.New("bu işlem zaten ters kayıt ile iptal edilmiş")
 	ErrCannotRemoveLastAdmin      = errors.New("tenant içerisindeki son admin kullanıcısı silinemez")
+	ErrSupplierNotFound           = errors.New("tedarikçi bulunamadı")
+	ErrInvalidSupplierDirection   = errors.New("geçersiz tedarikçi işlem yönü (sadece 'purchase' veya 'payment' olabilir)")
+	ErrDuplicateSupplierName      = errors.New("bu isimde bir tedarikçi zaten mevcut")
 )

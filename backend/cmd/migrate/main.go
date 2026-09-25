@@ -69,8 +69,8 @@ func main() {
 	if len(appliedMap) == 0 && isDatabaseAlreadyInitialized(ctx, pool) {
 		fmt.Println("ℹ️  Mevcut veritabanı şeması tespit edildi. Başlangıç migrationları (00-13) baseline olarak işaretleniyor...")
 		for _, f := range files {
-			// 00 ile 13 arasındaki dosyaları baseline olarak işaretle
-			if strings.HasPrefix(f, "0") || strings.HasPrefix(f, "1") {
+			// 00 ile 14 arasındaki dosyaları baseline olarak işaretle (15 ve sonrası yeni migrationlardır)
+			if f <= "14_strict_data_loss_prevention.sql" {
 				if err := recordMigration(ctx, pool, f); err != nil {
 					log.Fatalf("❌ Baseline kaydı başarısız (%s): %v", f, err)
 				}
@@ -246,7 +246,7 @@ func getDatabaseURL() string {
 	if dbURL != "" {
 		return dbURL
 	}
-	envPaths := []string{".env", "../.env", "backend/.env"}
+	envPaths := []string{".env.local", "../.env.local", ".env", "../.env", "backend/.env"}
 	for _, p := range envPaths {
 		data, err := os.ReadFile(p)
 		if err == nil {

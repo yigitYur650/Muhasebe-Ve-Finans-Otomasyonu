@@ -49,16 +49,9 @@ Ancak geliştirme sürecinde hız kazanmak amacıyla eklenen **mock repository'l
 
 ---
 
-## 3. Hardcoded Değerler ve Sabit Tanımlar
-
-### 3.1. Sabit Varsayılan Tenant ve Kullanıcı UUID'leri
-- **Kullanılan Değerler:**
-  - `00000000-0000-0000-0000-000000000001` (Varsayılan Öncü Otogaz Tenant ID)
-  - `149c91f0-0d03-4e3a-81d7-0bc5688c01b0` (Test Kullanıcı ID)
-- **Tespit Edilen Dosyalar:**
-  - `frontend/src/lib/api.ts` (Satır 74): `defaultHeaders['X-Tenant-ID'] = tenantId || '00000000-0000-0000-0000-000000000001';`
-  - `backend/cmd/breakpoint/main.go`, `cmd/capacity/main.go`, `cmd/megastress/main.go`, `cmd/stress/main.go`, `cmd/run_yaml_tests/main.go`
-- **Etki:** Çok kiracılı (Multi-tenant SaaS) mimaride tenant ID asla kod içine gömülü (hardcoded) olmamalıdır. Kullanıcı giriş yaptığında Supabase JWT'sinden veya `tenant_members` tablosundan dinamik okunmalıdır.
+### 3.1. 🟢 ÇÖZÜLDÜ: Sabit Varsayılan Tenant ve Kullanıcı UUID'leri Temizlendi (Sektör Standardı JWT Claims & Dynamic Multi-Tenancy)
+- **Dosyalar:** `frontend/src/lib/api.ts`, `backend/internal/handler/middleware/auth_middleware.go`, `backend/internal/repository/tenant_repo.go`, `migrations/17_supabase_jwt_custom_claims_hook.sql`
+- **Durum:** `00000000-0000-0000-0000-000000000001` statik UUID kalıntıları üretim ve yetkilendirme katmanlarından tamamen temizlendi. Auth süreci Supabase Custom Claims (`claims.app_metadata.tenant_id`) ve veritabanı dinamik çözümlemesi (`GetFirstTenant`, `GetMembersByUserID`) standartlarına yükseltildi. Çok kiracılı SaaS izolasyonu sağlandı.
 
 ### 3.2. 🟢 ÇÖZÜLDÜ: İşlem Tablosunda Dinamik Kullanıcı Profili Entegrasyonu
 - **Dosya:** `frontend/src/app/[locale]/page.tsx`

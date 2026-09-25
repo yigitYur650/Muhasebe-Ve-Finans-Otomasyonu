@@ -42,12 +42,25 @@ func main() {
 		},
 	}
 
-	tenantID := "00000000-0000-0000-0000-000000000001"
-	userID := "00000000-0000-0000-0000-000000000002"
-	userRole := "admin"
+	tenantID := os.Getenv("TEST_TENANT_ID")
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000001"
+	}
+	userID := os.Getenv("TEST_USER_ID")
+	if userID == "" {
+		userID = "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
+	}
+	userRole := os.Getenv("TEST_USER_ROLE")
+	if userRole == "" {
+		userRole = "admin"
+	}
+	jwtToken := os.Getenv("TEST_JWT_TOKEN")
 
 	setHeaders := func(req *http.Request, idempotencyKey string) {
 		req.Header.Set("Content-Type", "application/json")
+		if jwtToken != "" {
+			req.Header.Set("Authorization", "Bearer "+jwtToken)
+		}
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.Header.Set("X-User-ID", userID)
 		req.Header.Set("X-User-Role", userRole)

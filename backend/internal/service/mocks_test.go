@@ -42,6 +42,37 @@ func (m *MockTenantRepo) GetMembersByTenantID(ctx context.Context, tenantID uuid
 	return args.Get(0).([]domain.TenantMember), args.Error(1)
 }
 
+func (m *MockTenantRepo) GetFirstTenant(ctx context.Context) (*domain.Tenant, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Tenant), args.Error(1)
+}
+
+func (m *MockTenantRepo) AddMember(ctx context.Context, member *domain.TenantMember) error {
+	args := m.Called(ctx, member)
+	return args.Error(0)
+}
+
+func (m *MockTenantRepo) GetMembersByUserID(ctx context.Context, userID uuid.UUID) ([]domain.TenantMember, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.TenantMember), args.Error(1)
+}
+
+func (m *MockTenantRepo) UpdateMemberRole(ctx context.Context, tenantID, userID uuid.UUID, role domain.Role) error {
+	args := m.Called(ctx, tenantID, userID, role)
+	return args.Error(0)
+}
+
+func (m *MockTenantRepo) RemoveMember(ctx context.Context, tenantID, userID uuid.UUID) error {
+	args := m.Called(ctx, tenantID, userID)
+	return args.Error(0)
+}
+
 type MockPeriodRepo struct {
 	mock.Mock
 }

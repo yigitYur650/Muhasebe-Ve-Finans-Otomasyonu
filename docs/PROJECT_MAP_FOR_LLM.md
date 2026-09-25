@@ -106,14 +106,13 @@
 | 03 | `03_create_current_tenant_fn.sql` | `public.current_tenant_ids()` | RLS politikalarında kullanılan oturumdaki kullanıcının bağlı olduğu tenant ID kümesini dönen fonksiyon (`STABLE`, `SECURITY DEFINER`). |
 | 04 | `04_create_periods.sql` | `public.periods` | Aylık dönem tablosu (`label`, `starting_balance`, `status`: open/locked). RLS enabled. |
 | 05 | `05_create_transactions.sql` | `public.transactions` | Append-only işlem tablosu (`direction`: in/out, `channel`, `amount` NUMERIC(15,2), `reversed_by`). RLS enabled. |
-| 06 | `06_period_rollover_fn.sql` | `public.open_next_period()` | Önceki dönemin kapanış bakiyesini (Gelir - Gider) otomatik `starting_balance` olarak yeni döneme devreden devir fonksiyonu (`SECURITY DEFINER`). |
-| 07 | `07_period_lock_and_append_only_triggers.sql` | `trg_prevent_transaction_update`, `trg_prevent_transaction_delete`, `trg_prevent_locked_period_insert` | `transactions` üzerinde `UPDATE`/`DELETE` işlemlerini engelleyen append-only garantisi ve `locked` döneme `INSERT` engelleyen DB trigger'ları. |
-| 08 | `08_rls_periods_and_transactions.sql` | RLS Policies & Grants | `periods` ve `transactions` tabloları için tenant bazlı `SELECT` ve `INSERT` RLS politikaları. `authenticated` rolüne açık GRANT. |
-| 09 | `09_create_idempotency_keys.sql` | `public.idempotency_keys` | Idempotency-Key middleware için tekilleştirme ve yanıt saklama tablosu (`key` PK, `tenant_id`, `response_body`). |
-| 10 | `10_create_user_security.sql` | `public.user_security` | Şifre sıfırlama için güvenlik sorusu ve bcrypt hash saklama tablosu. |
-| 11 | `11_fix_transactions_created_by_fk.sql` | `public.transactions` | Harici API ve servis çağrıları için `transactions_created_by_fkey` esnekliği. |
+| 06 | `06_period_rollover_fn.sql` | `public.open_next_period()` | Önceki dönemin kapanış bakiyesini (Gelir - Gider) otomatik `starting_balance` olarak yeni döneme devreden devir fonksiyonu (`SECURITY DEFINER`). | 11 | `11_fix_transactions_created_by_fk.sql` | `public.transactions` | Harici API ve servis çağrıları için `transactions_created_by_fkey` esnekliği. |
 | 12 | `12_fix_open_next_period.sql` | `public.open_next_period()` | Append-only defterde tüm işlemleri ve zıt yönlü ters kayıtları netleyerek devreden fonksiyon düzeltmesi. |
 | 13 | `13_auto_assign_tenant_on_signup.sql` | `on_auth_user_created` | Yeni kayıt olan kullanıcıları otomatik olarak varsayılan işletmeye (`tenant_members`) `admin` rolüyle bağlayan trigger. |
+| 14 | `14_strict_data_loss_prevention.sql` | DB Guard | Veri kaybını engelleyen ve kısıtları güçlendiren veritabanı korumaları. |
+| 15 | `15_create_suppliers.sql` | `public.suppliers`, `public.supplier_transactions` | Tedarikçi ve parçacı cari hesap şeması, bakiye takibi ve işlem tablosu. RLS enabled. |
+| 16 | `16_add_reversed_by_to_supplier_transactions.sql` | `public.supplier_transactions` | Tedarikçi işlemleri için append-only ters kayıt / çift defter desteği (`reversed_by` self-reference). |
+| 17 | `17_supabase_jwt_custom_claims_hook.sql` | `custom_access_token_hook` | Supabase Auth Server için `claims.app_metadata.tenant_id` ve `role` enjekte eden sektör standardı custom claims hook fonksiyonu. |
 | 99 | `99_reset_and_seed.sql` | Seed Script | Veritabanını temizleyen ve "Öncü Otogaz" ilk işletme ile ilk açık dönemi kuran script. |
 | Hepsi | `supabase_combined_schema.sql` | Full Schema & Seed | Supabase Dashboard SQL Editor üzerinden tek tıkla çalıştırılabilir konsolide şema ve tohum verisi. |
 | Test | `test_scenarios.sql` | Integration Tests | 9/9 SQL bütünlük, trigger kısıtı ve multi-tenant RLS izolasyon doğrulama scripti. |
@@ -125,27 +124,30 @@
 | Paket / Katman | Dosya Adı | Açıklama |
 |---|---|---|
 | `cmd/api` | `main.go` | Fiber v2 tabanlı HTTP API sunucusunu ayağa kaldıran giriş noktası. `/health` kontrol endpoint'i barındırır. |
-| `cmd/migrate` | `main.go` | `DATABASE_URL` üzerinden Supabase veritabanına otomatik migration çalıştıran CLI aracı. |
+| `cmd/migrate` | `main.go` | `DATABASE_URL` üzerinden Supabase/PostgreSQL veritabanına otomatik migration çalıştıran CLI aracı. |
 | `cmd/dbcheck` | `main.go` | Supabase Pooler host ve port bağlantılarını doğrulayan teşhis aracı. |
 | `cmd/reset` | `main.go` | Canlı ve test veritabanını sıfırlayıp ilk tohum verilerini yükleyen araç. |
 | `cmd/verify_supabase` | `main.go` | Supabase gerçek zamanlı veri yazma ve okuma doğrulama testi. |
 | `internal/domain` | `tenant.go` | `Tenant`, `TenantMember` struct tanımları ve `Role` sabitleri (`admin`, `muhasebeci`, `standart`). |
 | `internal/domain` | `period.go` | `Period` struct tanımı, `PeriodStatus` sabitleri (`open`, `locked`) ve kilit durumu kontrol metotları. |
 | `internal/domain` | `transaction.go` | `Transaction` struct tanımı, `Direction` (`in`, `out`), `Channel` (12 işlem kanalı) sabitleri ve domain validasyonu. |
+| `internal/domain` | `supplier.go` | `Supplier`, `SupplierTransaction` ve `SupplierSummary` modelleri; ters kayıt durum kontrolleri. |
 | `internal/domain` | `idempotency.go` | `IdempotencyKey` struct tanımı. |
 | `internal/domain` | `errors.go` | Merkezi domain hata tanımları (`ErrPeriodLocked`, `ErrInvalidAmount`, `ErrUnauthorized`, vb.). |
-| `internal/domain` | `repository.go` | Clean Architecture veritabanı erişim arayüzleri (`TenantRepository`, `PeriodRepository`, `TransactionRepository`, `IdempotencyRepository`). |
-| `internal/domain` | `service.go` | Clean Architecture iş mantığı servis arayüzleri (`PeriodService`, `TransactionService`) ve `PeriodSummary` struct'ı. |
+| `internal/domain` | `repository.go` | Clean Architecture veritabanı erişim arayüzleri (`TenantRepository`, `PeriodRepository`, `TransactionRepository`, `SupplierRepository`, `IdempotencyRepository`). |
+| `internal/domain` | `service.go` | Clean Architecture iş mantığı servis arayüzleri (`PeriodService`, `TransactionService`, `SupplierService`) ve `PeriodSummary` struct'ı. |
 | `internal/domain` | `decimal_test.go` | `shopspring/decimal` ile hassas parasal hesaplamalar, bakiye devri, tutar validasyonu ve kısıtların unit testleri (6/6 PASS). |
 | `internal/repository` | `postgres.go` | `pgxpool.Pool` bağlantı havuzunu production standartlarında yapılandıran ve başlatan ilklendirici. |
 | `internal/repository` | `errors.go` | PostgreSQL ve pgx veritabanı hatalarını (P0001 trigger, 23505 unique violation, ErrNoRows) domain hatalarına dönüştüren `MapSQLError`. |
-| `internal/repository` | `tenant_repo.go` | `TenantRepository` PostgreSQL somut uygulaması (`GetByID`, `Create`, `GetMember`, `GetMembersByTenantID`). |
+| `internal/repository` | `tenant_repo.go` | `TenantRepository` PostgreSQL somut uygulaması (`GetByID`, `GetFirstTenant`, `Create`, `GetMember`, `GetMembersByTenantID`, `AddMember`). |
 | `internal/repository` | `period_repo.go` | `PeriodRepository` PostgreSQL somut uygulaması (`GetByID`, `GetByLabel`, `GetLatestByTenant`, `OpenNextPeriod`, `Create`, `Lock`). |
 | `internal/repository` | `transaction_repo.go` | `TransactionRepository` PostgreSQL somut uygulaması (`Create`, `GetByID`, `GetByPeriodID`, `GetSummaryByPeriodID`, `ReverseTransaction`, `MarkReversed`). |
+| `internal/repository` | `supplier_repo.go` | `SupplierRepository` PostgreSQL somut uygulaması (Tedarikçi listeleme, cari bakiye hesaplama, çift defter ters kayıt `pgx.Tx` atomikliği). |
 | `internal/repository` | `idempotency_repo.go` | `IdempotencyRepository` PostgreSQL somut uygulaması (`Get`, `Save`). |
 | `internal/repository` | `repository_test.go` | SQL hata dönüştürme (error mapping) ve repository katmanı unit testleri (5/5 PASS). |
 | `internal/service` | `period_service.go` | `PeriodService` iş mantığı uygulaması (dönem devri, rol yetki denetimi ile kilitleme, dönem listeleme, bakiye özeti). |
 | `internal/service` | `transaction_service.go` | `TransactionService` iş mantığı uygulaması (kilitli dönem denetimi, ters kayıt/reversal üretimi ve yön dönüşümü). |
+| `internal/service` | `supplier_service.go` | `SupplierService` iş mantığı uygulaması (akıllı Excel içe aktarımı, sayfa ve Türkçe ay haritalama, ters kayıt ve cari mutasyon kontrolü). |
 | `internal/service` | `tenant_service.go` | `TenantService` üye ve rol yönetimi uygulaması (`AddMember`, `UpdateMemberRole`, `RemoveMember`, son admin koruması). |
 | `internal/service` | `tenant_service_test.go` | `TenantService` RBAC ve son admin koruması unit testleri (2/2 PASS). |
 | `internal/service` | `mocks_test.go` | Servis testlerinde kullanılan `testify/mock` repository sahte nesne tanımları. |
@@ -157,6 +159,7 @@
 | `internal/handler` | `dto.go` | JSON İstek ve Yanıt DTO'ları (`OpenPeriodRequest`, `CreateTransactionRequest` decimal.Decimal, `ReverseTransactionRequest`, `ResponseEnvelope`). |
 | `internal/handler` | `errors.go` | Domain hatalarını standart JSON yanıt formatına (`{"success": false, "error": {...}}`) ve HTTP status kodlarına dönüştüren `CustomErrorHandler`. |
 | `internal/handler` | `period_handler.go` | Fiber HTTP `PeriodHandler` (`ListPeriods`, `OpenNextPeriod`, `LockPeriod`, `GetPeriodSummary`). |
+| `internal/handler` | `supplier_handler.go` | Fiber HTTP `SupplierHandler` (`ListSuppliers`, `GetSupplierSummary`, `ImportExcel`, `ReverseTransaction`). |
 | `internal/handler` | `tenant_handler.go` | Fiber HTTP `TenantHandler` (`ListMembers`, `AddMember`, `UpdateMemberRole`, `RemoveMember`). |
 | `internal/handler` | `transaction_handler.go` | Fiber HTTP `TransactionHandler` (`CreateTransaction`, `ReverseTransaction`, `ListTransactions`). |
 | `internal/handler` | `export_handler.go` | Fiber HTTP `ExportHandler` (`ExportTransactionsCSV` - UTF-8 BOM ile Excel uyumlu CSV akışı, `DownloadSampleCSVTemplate`). |
@@ -164,8 +167,8 @@
 | `internal/handler` | `router.go` | Fiber yönlendirme tablosunu, recover, context, idempotency ve tenant üye middleware/rotalarını bağlayan `SetupRouter`. |
 | `internal/handler/middleware` | `context_middleware.go` | HTTP header'larından (`X-Tenant-ID`, `X-User-ID`, `X-User-Role`) oturum verisini parse eden ve `GetTenantID`, `GetUserID` yardımcılarını sunan middleware. |
 | `internal/handler/middleware` | `idempotency_middleware.go` | `Idempotency-Key` başlığını denetleyen, tekrar isteklerinde önceden üretilmiş yanıtı (HTTP status & JSON body) DB'den dönen middleware. |
-| `internal/handler/middleware` | `auth_middleware.go` | Supabase JWT doğrulaması (`aud: "authenticated"`, `exp`) ve veritabanı tenant rol denetimi (`tenantRepo.GetMember`) yapan middleware. |
-| `internal/handler/middleware` | `auth_middleware_test.go` | JWT doğrulama unit testleri (Geçerli token, süresi dolmuş token, sahte imza, yetkisiz tenant erişimi) (4/4 PASS). |
+| `internal/handler/middleware` | `auth_middleware.go` | Supabase JWT doğrulaması (Base64/Raw HMAC Secret, App Metadata Custom Claims, fail-secure, dev bypass ve dinamik auto-provisioning). |
+| `internal/handler/middleware` | `auth_middleware_test.go` | JWT doğrulama unit testleri (Geçerli token, süresi dolmuş token, sahte imza, custom claim'ler, auto-provision) (10/10 PASS). |
 | `internal/handler` | `handler_test.go` | Fiber `httptest` ile idempotency tekilleştirme, negatif tutar reddi (400), kilitli dönem (422) ve yetkisiz rol (403) HTTP testleri (4/4 PASS). |
 | `internal/handler` | `integration_test.go` | 5 Kritik E2E & Güvenlik Matrisi entegrasyon testi (Uçtan uca defter akışı, ters kayıt audit bütünlüğü, idempotency tekilleştirme, kilitli dönem engeli, multi-tenant & rol izolasyonu) (5/5 PASS). |
 
@@ -178,8 +181,7 @@
 | `app` | `page.tsx` | Kök dizin `/` isteklerini varsayılan dil olan `/tr` rotasına sunucu taraflı güvenle yönlendiren `RootPage`. |
 | `app` | `layout.tsx` | Next.js 15 App Router kök dizin yerleşim ilklendiricisi `RootLayout`. |
 | `app/[locale]` | `layout.tsx` | Next.js 15 App Router locale yerleşimi (`NextIntlClientProvider`, Inter font ve Tailwind CSS). |
-| `app/[locale]` | `page.tsx` | KPI bakiye kartları, dönem seçici, arşiv uyarı banner'ı, CSV dışa/içe aktar butonları ve işlem defteri tablosu. |
-
+| `app/[locale]` | `page.tsx` | Kasa Defteri ve Tedarikçiler sekmeleri, KPI bakiye kartları, dönem seçici, Excel/CSV aktarım ve ters kayıt aksiyonları. |
 | `app/[locale]/login` | `page.tsx` | Supabase Auth entegrasyonlu, i18n destekli, hem mevcut kullanıcı girişi hem de yeni kullanıcı kayıt modunu (`supabase.auth.signUp`) barındıran portal. |
 | `components/auth` | `ForgotPasswordDialog.tsx` | Güvenlik sorusu yanıtı ile şifre sıfırlama modalı. |
 | `components/auth` | `ChangePasswordDialog.tsx` | Oturum açmış kullanıcılar için güvenlik sorusu ve şifre güncelleme modalı. |
@@ -195,15 +197,21 @@
 | `components/ledger` | `CreateTransactionDialog.tsx` | Hızlı satır girişi modalı, `crypto.randomUUID()` ile frontend idempotency key üretimi. |
 | `components/ledger` | `ReverseTransactionDialog.tsx` | Ters kayıt (iptal) modalı, yasal denetim uyarısı ve gerekçe (`reason`) zorunluluğu. |
 | `components/ledger` | `PeriodActionDialog.tsx` | Rol denetimli dönem kilitleme (`LockPeriod`) ve yeni dönem açma (`OpenNextPeriod`) modalı. |
+| `components/suppliers` | `SupplierSummaryCards.tsx` | Tedarikçi toplam fatura, ödeme, kalan borç ve aktif tedarikçi metrik kartları. |
+| `components/suppliers` | `SupplierLedgerTable.tsx` | Tedarikçi ve parçacı işlem defteri tablosu, `İptal / Ters Kayıt` aksiyon butonları, `[TERS KAYIT]` / `[İPTAL EDİLDİ]` rozetleri ve durum filtresi. |
+| `components/suppliers` | `CreateSupplierTransactionDialog.tsx` | Yeni tedarikçi cari işlemi (Giriş/Fatura veya Çıkış/Ödeme) ekleme modalı. |
+| `components/suppliers` | `ReverseSupplierTransactionDialog.tsx` | Tedarikçi işlem iptali / ters kayıt onay ve gerekçe modalı. |
+| `components/suppliers` | `ImportSupplierExcelDialog.tsx` | Tedarikçi aylık çok sayfalı Excel tablosunu (`.xlsx`) içe aktarma modalı. |
 | `components/admin` | `MemberManagementDialog.tsx` | Yalnızca `admin` rolü tarafından açılabilen üye listeleme, rol değiştirme, yeni üye ekleme ve çıkarabilme modalı. |
 | `components/ui` | `button.tsx`, `input.tsx`, `card.tsx`, `badge.tsx`, `table.tsx`, `dialog.tsx`, `select.tsx` | `shadcn/ui` UI temel bileşenleri. |
-| `types` | `database.types.ts` | Supabase şemasının tam TypeScript tip karşılığı (`Database['public']['Tables']`). |
+| `types` | `database.types.ts`, `supplier.ts` | Supabase şemasının tam TypeScript tip karşılığı ve tedarikçi modelleri. |
 | `lib/supabase` | `client.ts`, `server.ts`, `index.ts` | Tam tip güvenlikli (`<Database>`), singleton ve SSR uyumlu Supabase istemcileri. |
 | `lib` | `decimal.ts` | `decimal.js` ile float taşmasız parasal hesaplama metotları ve `formatTL` para formatlayıcı. |
 | `lib` | `api.ts` | Go Backend `/api/v1` rotalarına otomatik Supabase Bearer token enjeksiyonu ile erişen merkezi HTTP istemcisi. |
 | `lib` | `utils.ts` | `clsx` ve `tailwind-merge` birleştiren `cn` yardımcı metodu. |
-| `messages` | `tr.json`, `en.json` | Hardcoded metin kullanımını engelleyen modüler i18n çeviri sözlükleri (`common`, `period`, `transaction`, `auth`, `errors`, `import_export`). |
+| `messages` | `tr.json`, `en.json` | Hardcoded metin kullanımını engelleyen modüler i18n çeviri sözlükleri. |
 | `i18n` | `request.ts`, `middleware.ts` | `next-intl` dili otomatik algılama ve dinamik rota yönlendirme middleware'i. |
 | Root | `next.config.mjs` | `next-intl` eklentisini Next.js derleme sürecine entegre eden konfigürasyon dosyası. |
+
 
 

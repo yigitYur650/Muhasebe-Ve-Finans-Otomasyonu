@@ -125,28 +125,16 @@ func TestLockPeriod_AlreadyLocked_CurrentBehavior(t *testing.T) {
 		LockedAt: &now,
 	}
 
-	adminMember := &domain.TenantMember{
-		ID:       uuid.New(),
-		TenantID: tenantID,
-		UserID:   adminUserID,
-		Role:     domain.RoleAdmin,
-	}
-
 	mockPeriodRepo := new(MockPeriodRepo)
 	mockTenantRepo := new(MockTenantRepo)
 	mockTxRepo := new(MockTransactionRepo)
 	svc := service.NewPeriodService(mockPeriodRepo, mockTenantRepo, mockTxRepo)
 
 	mockPeriodRepo.On("GetByID", ctx, periodID).Return(alreadyLocked, nil)
-	mockTenantRepo.On("GetMember", ctx, tenantID, adminUserID).Return(adminMember, nil)
-	mockPeriodRepo.On("Lock", ctx, periodID).Return(nil)
 
 	err := svc.LockPeriod(ctx, periodID, adminUserID)
 
-	// MEVCUT DAVRANIŞ: kilitli dönem tekrar "kilitleniyor"; hata dönmüyor.
-	// (Idempotent olabilir veya tutarsızlık olabilir — karar vermek gerek.)
-	assert.NoError(t, err, "MEVCUT DAVRANIŞ: zaten kilitli dönem tekrar kilitlenebiliyor (açık)")
-	mockPeriodRepo.AssertCalled(t, "Lock", ctx, periodID)
+	assert.ErrorIs(t, err, domain.ErrPeriodLocked, "Zaten kilitli olan dönem tekrar kilitlenemez")
 }
 
 // ---------------------------------------------------------------------------
@@ -265,21 +253,18 @@ func TestTenantService_AddMember_CurrentBehavior(t *testing.T) {
 
 	mockTenantRepo.On("GetMember", ctx, tenantID, adminUserID).Return(adminMember, nil)
 
-	// MEVCUT DAVRANIŞ: repo.Create, domain.Tenant tipinde çağrılır (üye değil).
-	// `s.tenantRepo.Create(ctx, &domain.Tenant{ID: tenantID})` — bu bir açıktır.
-	var captured *domain.Tenant
-	mockTenantRepo.On("Create", ctx, mock.Anything).Run(func(args mock.Arguments) {
-		captured = args.Get(1).(*domain.Tenant)
+	var captured *domain.TenantMember
+	mockTenantRepo.On("AddMember", ctx, mock.Anything).Run(func(args mock.Arguments) {
+		captured = args.Get(1).(*domain.TenantMember)
 	}).Return(nil)
 
 	err := tenantSvc.AddMember(ctx, tenantID, adminUserID, targetUserID, domain.RoleMuhasebeci)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, captured, "MEVCUT DAVRANIŞ: AddMember repo.Create'i tetikliyor")
-	// Açık: targetUserID ve role hiçbir yerde repo'ya gitmiyor; yanlışlıkla
-	// yeni bir TENANT (boş isim) oluşturuluyor. Bu bir bug olarak kayıtlanmalı.
-	assert.Equal(t, tenantID, captured.ID)
-	assert.Empty(t, captured.Name, "MEVCUT KOD yeni bir isimsiz Tenant oluşturuyor — üye eklemiyor!")
+	assert.NotNil(t, captured, "DÜZELTİLMİŞ DAVRANIŞ: AddMember repo.AddMember'i tetikliyor")
+	assert.Equal(t, tenantID, captured.TenantID)
+	assert.Equal(t, targetUserID, captured.UserID)
+	assert.Equal(t, domain.RoleMuhasebeci, captured.Role)
 }
 
 // ---------------------------------------------------------------------------
@@ -422,19 +407,12 @@ func TestTenantService_UpdateMemberRole_TargetNotFound(t *testing.T) {
 		Role:     domain.RoleAdmin,
 	}
 
-	// Tek admin var
-	allMembers := []domain.TenantMember{{TenantID: tenantID, UserID: adminUserID, Role: domain.RoleAdmin}}
-
 	mockTenantRepo.On("GetMember", ctx, tenantID, adminUserID).Return(adminMember, nil)
-	mockTenantRepo.On("GetMembersByTenantID", ctx, tenantID).Return(allMembers, nil)
 	mockTenantRepo.On("GetMember", ctx, tenantID, nonexistentTarget).Return(nil, domain.ErrNotFound)
 
 	err := tenantSvc.UpdateMemberRole(ctx, tenantID, adminUserID, nonexistentTarget, domain.RoleStandart)
 
-	// MEVCUT DAVRANIŞ: hedef bulunamayınca adminCount<=1 ve target admin değil,
-	// bu yüzden ErrCannotRemoveLastAdmin dönmez. Ancak hiçbir düzeltme de
-	// yapılmaz — UpdateMemberRole repo'ya hiçbir şey yazmıyor (silent success).
-	assert.NoError(t, err, "MEVCUT DAVRANIŞ: var olmayan hedef için sessiz başarı (açık — gerçek düzeltme yapılmıyor)")
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 // ---------------------------------------------------------------------------

@@ -25,9 +25,19 @@ type StepTx struct {
 
 func main() {
 	baseURL := "http://localhost:8080/api/v1"
-	tenantID := "00000000-0000-0000-0000-000000000001"
-	userID := "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
-	userRole := "admin"
+	tenantID := os.Getenv("TEST_TENANT_ID")
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000001"
+	}
+	userID := os.Getenv("TEST_USER_ID")
+	if userID == "" {
+		userID = "149c91f0-0d03-4e3a-81d7-0bc5688c01b0"
+	}
+	userRole := os.Getenv("TEST_USER_ROLE")
+	if userRole == "" {
+		userRole = "admin"
+	}
+	jwtToken := os.Getenv("TEST_JWT_TOKEN")
 
 	fmt.Println("==========================================================================")
 	fmt.Println("🚀 CANLI YAML SENARYO TEST KOŞUCUSU (ACCOUNTING LIFECYCLE)")
@@ -44,6 +54,9 @@ func main() {
 		}
 		req, _ := http.NewRequest(method, baseURL+path, bodyReader)
 		req.Header.Set("Content-Type", "application/json")
+		if jwtToken != "" {
+			req.Header.Set("Authorization", "Bearer "+jwtToken)
+		}
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.Header.Set("X-User-ID", userID)
 		req.Header.Set("X-User-Role", userRole)

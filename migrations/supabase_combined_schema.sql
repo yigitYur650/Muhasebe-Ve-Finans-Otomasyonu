@@ -253,7 +253,113 @@ CREATE POLICY user_security_owner_policy ON public.user_security
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
--- 11. BAŞLANGIÇ TOHUM VERİLERİ (SEED)
+-- 11. STRICT DATA LOSS PREVENTION & TRUNCATE PROTECTION (Migration 14)
+DROP TRIGGER IF EXISTS trg_prevent_transaction_truncate ON public.transactions;
+CREATE TRIGGER trg_prevent_transaction_truncate
+BEFORE TRUNCATE ON public.transactions
+FOR EACH STATEMENT EXECUTE FUNCTION public.prevent_transaction_mutation();
+
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_tenant_id_fkey;
+ALTER TABLE public.transactions ADD CONSTRAINT transactions_tenant_id_fkey
+FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.periods DROP CONSTRAINT IF EXISTS periods_tenant_id_fkey;
+ALTER TABLE public.periods ADD CONSTRAINT periods_tenant_id_fkey
+FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE RESTRICT;
+
+-- 12. SUPPLIERS & SUPPLIER TRANSACTIONS (DUAL-LEDGER) (Migration 15)
+CREATE TABLE IF NOT EXISTS public.suppliers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_suppliers_tenant_name UNIQUE (tenant_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_tenant ON public.suppliers(tenant_id);
+
+CREATE TABLE IF NOT EXISTS public.supplier_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    supplier_id UUID NOT NULL REFERENCES public.suppliers(id) ON DELETE CASCADE,
+    period_id UUID NOT NULL REFERENCES public.periods(id) ON DELETE CASCADE,
+    invoice_no VARCHAR(100),
+    customer_name VARCHAR(150),
+    document_status VARCHAR(50),
+    tx_date DATE NOT NULL,
+    direction VARCHAR(10) NOT NULL CHECK (direction IN ('purchase', 'payment')),
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    description TEXT,
+    created_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_tenant ON public.supplier_transactions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_supplier ON public.supplier_transactions(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_period ON public.supplier_transactions(period_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_date ON public.supplier_transactions(tx_date);
+
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.suppliers FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.supplier_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_transactions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçilerini görür" ON public.suppliers;
+CREATE POLICY "Tenant üyeleri kendi tedarikçilerini görür"
+ON public.suppliers FOR SELECT
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tenant'ına tedarikçi ekler" ON public.suppliers;
+CREATE POLICY "Tenant üyeleri kendi tenant'ına tedarikçi ekler"
+ON public.suppliers FOR INSERT
+TO authenticated
+WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçilerini günceller" ON public.suppliers;
+CREATE POLICY "Tenant üyeleri kendi tedarikçilerini günceller"
+ON public.suppliers FOR UPDATE
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()))
+WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçilerini siler" ON public.suppliers;
+CREATE POLICY "Tenant üyeleri kendi tedarikçilerini siler"
+ON public.suppliers FOR DELETE
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçi hareketlerini görür" ON public.supplier_transactions;
+CREATE POLICY "Tenant üyeleri kendi tedarikçi hareketlerini görür"
+ON public.supplier_transactions FOR SELECT
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tenant'ına tedarikçi hareketi ekler" ON public.supplier_transactions;
+CREATE POLICY "Tenant üyeleri kendi tenant'ına tedarikçi hareketi ekler"
+ON public.supplier_transactions FOR INSERT
+TO authenticated
+WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçi hareketlerini günceller" ON public.supplier_transactions;
+CREATE POLICY "Tenant üyeleri kendi tedarikçi hareketlerini günceller"
+ON public.supplier_transactions FOR UPDATE
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()))
+WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+
+DROP POLICY IF EXISTS "Tenant üyeleri kendi tedarikçi hareketlerini siler" ON public.supplier_transactions;
+CREATE POLICY "Tenant üyeleri kendi tedarikçi hareketlerini siler"
+ON public.supplier_transactions FOR DELETE
+TO authenticated
+USING (tenant_id IN (SELECT public.current_tenant_ids()));
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.suppliers TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.supplier_transactions TO authenticated;
+
+-- 13. BAŞLANGIÇ TOHUM VERİLERİ (SEED)
 INSERT INTO public.tenants (id, name, created_at)
 VALUES (
     '00000000-0000-0000-0000-000000000001',
@@ -273,7 +379,7 @@ VALUES (
 )
 ON CONFLICT (tenant_id, label) DO NOTHING;
 
--- 12. OTOMATİK KULLANICI-İŞLETME (TENANT) BAĞLAMA TRİGGER'I
+-- 14. OTOMATİK KULLANICI-İŞLETME (TENANT) BAĞLAMA TRİGGER'I
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -302,5 +408,95 @@ INSERT INTO public.tenant_members (tenant_id, user_id, role)
 SELECT '00000000-0000-0000-0000-000000000001', id, 'admin'
 FROM auth.users
 ON CONFLICT (tenant_id, user_id) DO NOTHING;
+
+-- 15. ÇİFT DEFTER (DUAL-LEDGER) TEDARİKÇİ & CARİ TAKİP ŞEMASI
+CREATE TABLE IF NOT EXISTS public.suppliers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_suppliers_tenant_name UNIQUE (tenant_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_tenant ON public.suppliers(tenant_id);
+
+CREATE TABLE IF NOT EXISTS public.supplier_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    supplier_id UUID NOT NULL REFERENCES public.suppliers(id) ON DELETE CASCADE,
+    period_id UUID NOT NULL REFERENCES public.periods(id) ON DELETE CASCADE,
+    invoice_no VARCHAR(100),
+    customer_name VARCHAR(150),
+    document_status VARCHAR(50),
+    tx_date DATE NOT NULL,
+    direction VARCHAR(10) NOT NULL CHECK (direction IN ('purchase', 'payment')),
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    description TEXT,
+    created_by UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reversed_by UUID REFERENCES public.supplier_transactions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_tenant ON public.supplier_transactions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_supplier ON public.supplier_transactions(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_period ON public.supplier_transactions(period_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_date ON public.supplier_transactions(tx_date);
+CREATE INDEX IF NOT EXISTS idx_supplier_txs_reversed_by ON public.supplier_transactions(reversed_by);
+
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.suppliers FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.supplier_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_transactions FORCE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Tenant üyeleri kendi tedarikçilerini görür') THEN
+        CREATE POLICY "Tenant üyeleri kendi tedarikçilerini görür"
+        ON public.suppliers FOR SELECT
+        TO authenticated
+        USING (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Tenant üyeleri kendi tenant''ına tedarikçi ekler') THEN
+        CREATE POLICY "Tenant üyeleri kendi tenant'ına tedarikçi ekler"
+        ON public.suppliers FOR INSERT
+        TO authenticated
+        WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Tenant üyeleri kendi tedarikçilerini günceller') THEN
+        CREATE POLICY "Tenant üyeleri kendi tedarikçilerini günceller"
+        ON public.suppliers FOR UPDATE
+        TO authenticated
+        USING (tenant_id IN (SELECT public.current_tenant_ids()))
+        WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Tenant üyeleri kendi tedarikçilerini siler') THEN
+        CREATE POLICY "Tenant üyeleri kendi tedarikçilerini siler"
+        ON public.suppliers FOR DELETE
+        TO authenticated
+        USING (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'supplier_transactions' AND policyname = 'Tenant üyeleri kendi tedarikçi hareketlerini görür') THEN
+        CREATE POLICY "Tenant üyeleri kendi tedarikçi hareketlerini görür"
+        ON public.supplier_transactions FOR SELECT
+        TO authenticated
+        USING (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'supplier_transactions' AND policyname = 'Tenant üyeleri kendi tenant''ına tedarikçi hareketi ekler') THEN
+        CREATE POLICY "Tenant üyeleri kendi tenant'ına tedarikçi hareketi ekler"
+        ON public.supplier_transactions FOR INSERT
+        TO authenticated
+        WITH CHECK (tenant_id IN (SELECT public.current_tenant_ids()));
+    END IF;
+END $$;
+
+GRANT ALL ON public.suppliers TO authenticated;
+GRANT ALL ON public.supplier_transactions TO authenticated;
 
 COMMIT;

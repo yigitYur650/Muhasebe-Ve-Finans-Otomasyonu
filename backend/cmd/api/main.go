@@ -19,8 +19,8 @@ func main() {
 		ReadBufferSize: 16384, // 16KB header buffer to support modern JWT and auth cookies safely
 	})
 
-	// Load all variables from .env file into runtime environment
-	envPaths := []string{".env", "../.env", "backend/.env"}
+	// Load all variables from .env / .env.local file into runtime environment
+	envPaths := []string{".env.local", "../.env.local", ".env", "../.env", "backend/.env"}
 	for _, envPath := range envPaths {
 		if data, err := os.ReadFile(envPath); err == nil {
 			for _, line := range strings.Split(string(data), "\n") {
@@ -56,12 +56,14 @@ func main() {
 	tenantRepo := repository.NewPostgresTenantRepository(pool)
 	idemRepo := repository.NewPostgresIdempotencyRepository(pool)
 	secRepo := repository.NewPostgresUserSecurityRepository(pool)
+	supplierRepo := repository.NewPostgresSupplierRepository(pool)
 
 	periodSvc := service.NewPeriodService(periodRepo, tenantRepo, txRepo)
 	txSvc := service.NewTransactionService(txRepo, periodRepo)
 	tenantSvc := service.NewTenantService(tenantRepo)
+	supplierSvc := service.NewSupplierService(supplierRepo, periodRepo)
 
-	handler.SetupRouter(app, periodSvc, txSvc, periodRepo, txRepo, idemRepo, tenantSvc, tenantRepo, secRepo)
+	handler.SetupRouter(app, periodSvc, txSvc, periodRepo, txRepo, idemRepo, tenantSvc, tenantRepo, secRepo, supplierSvc, supplierRepo)
 
 	port := os.Getenv("PORT")
 	if port == "" {

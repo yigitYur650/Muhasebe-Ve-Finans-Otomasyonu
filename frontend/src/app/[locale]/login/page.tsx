@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Lock, Mail, Loader2, Flame, ShieldAlert, KeyRound } from "lucide-react";
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 
-export default function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = use(params);
+export default function LoginPage() {
+  const routeParams = useParams();
+  const locale = (routeParams?.locale as string) || "tr";
   const tAuth = useTranslations("auth");
   const tCommon = useTranslations("common");
   const router = useRouter();

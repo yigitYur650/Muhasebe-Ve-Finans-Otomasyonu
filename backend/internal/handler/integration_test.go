@@ -46,6 +46,7 @@ func TestEndToEndLedgerFlow_PennyAccurateBalances(t *testing.T) {
 	reqOpen.Header.Set("Content-Type", "application/json")
 	reqOpen.Header.Set(middleware.HeaderTenantID, tenantID.String())
 	reqOpen.Header.Set(middleware.HeaderUserID, userID.String())
+	reqOpen.Header.Set(middleware.HeaderUserRole, string(domain.RoleAdmin))
 
 	resOpen, err := app.Test(reqOpen, -1)
 	assert.NoError(t, err)

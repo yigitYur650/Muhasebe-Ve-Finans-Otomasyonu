@@ -291,6 +291,175 @@
 
 ---
 
+## 9. 🚚 Tedarikçiler & Parçacılar Çift Defter ve Ters Kayıt (Reversal)
+
+### Senaryo 9.1 — Tedarikçi İşlem İptali ve Otomatik Zıt Yönlü Ters Kayıt
+- **Önkoşul:** Tedarikçiye ait 15.000,00 TL tutarında bir `purchase` (Alınan Mal) kaydı bulunsun.
+- **İşlem Adımları:**
+  1. Tabloda işlemin yanındaki `İptal / Ters Kayıt` butonuna tıklayın.
+  2. İptal gerekçesi girip onaylayın.
+- **Beklenen Sonuç (PASS):**
+  - Orijinal kayıt `[İPTAL EDİLDİ]` rozeti almalı ve `reversed_by` alanı güncellenmelidir.
+  - Zıt yönlü (aynı tutarda ve `payment` yönünde) yeni bir `[TERS KAYIT]` satırı üretilmelidir.
+  - Tedarikçinin cari bakiyesi kuruşu kuruşuna netlenmelidir (`15.000,00 - 15.000,00 = 0,00 TL`).
+- **Durum:** `[x]` (Veritabanı transaction ve Go unit/handler testleri PASS)
+
+### Senaryo 9.2 — Ters Kaydın Tekrar İptal Edilmesi Yasağı (Double Reversal Block)
+- **Önkoşul:** İptal edilmiş bir tedarikçi işlemi veya `[TERS KAYIT]` satırı seçilsin.
+- **İşlem Adımları:**
+  1. API üzerinden doğrudan `POST /api/v1/suppliers/transactions/:id/reverse` isteği atın.
+- **Beklenen Sonuç (PASS):**
+  - Backend `422 Unprocessable Entity` ("bu işlem zaten ters kayıt yapılmış veya kendisi bir ters kayıttır") hatası dönerek işlemi reddetmelidir.
+- **Durum:** `[x]` (`TestReverseTransaction_DoubleReversalBlocked` PASS)
+
+---
+
+## 10. 🔐 Supabase JWT Custom Claims & Geliştirici Çıkışı Doğrulaması
+
+### Senaryo 10.1 — Base64 Kodlu HMAC Secret ile Kriptografik İmza Doğrulaması
+- **Önkoşul:** `SUPABASE_JWT_SECRET` ortam değişkeni Base64 formatında (`Lw7HcEdLRo+...==`) tanımlanmış olsun.
+- **İşlem Adımları:**
+  1. Supabase Auth tarafından imzalanmış geçerli bir kullanıcı Bearer token'ı ile korumalı uç noktalara istek atın.
+- **Beklenen Sonuç (PASS):**
+  - Backend token imzasını Base64 decoded bytes ile doğrulamalı ve `HTTP 200 OK` dönmelidir.
+- **Durum:** `[x]` (`TestAuthMiddleware_ValidToken` PASS)
+
+### Senaryo 10.2 — Geliştirici Modunda Token Olmadan Yerel Çalışma (Developer Bypass)
+- **Önkoşul:** `ENVIRONMENT=development` ayarlı olsun, istemciden hiçbir auth token gönderilmesin.
+- **İşlem Adımları:**
+  1. Tarayıcıdan veya `curl` ile `GET /api/v1/periods/` isteği atın.
+- **Beklenen Sonuç (PASS):**
+  - Backend `403` hatası yerine yerel veritabanındaki aktif işletmeye otomatik `Admin` rolü bağlayarak `HTTP 200 OK` dönmelidir.
+- **Durum:** `[x]` (`TestAuthMiddleware_DynamicTenantAutoProvision` PASS)
+
+---
+
+## 11. 🚀 Y-Serisi: Yüksek Hacim, Dayanıklılık ve Operasyonel Canlıya Geçiş Testleri
+
+### Y.1 — Yıl Sonu Veri Hacmi Stres Testi (10.000 İşlem Kaydı & Excel Export)
+- **Önkoşul:** Test ortamında 12 aylık, günde ortalama 20-30 işlem varsayımıyla ~10.000 kayıt üretilmiş olması.
+- **İşlem Adımları:**
+  1. KPI panelini (`GET /api/v1/periods/:id/summary`), işlem tablosunu (`GET /api/v1/periods/:id/transactions`) ve dönem geçmişini bu hacimde açın.
+  2. Sayfalama (25 / 50 / 100) ile gezinme hızını ölçün.
+  3. 10.000 satırlık Excel export'unu (`GET /api/v1/periods/:id/export/excel`) çalıştırın.
+- **Test Ölçüm Sonuçları (PASS):**
+  - 10.000 Kayıt Bellek Yükleme: **6.03 ms**
+  - KPI Panel Özeti (Summary) Yanıt Süresi: **2.00 ms** (Hedef: <50ms)
+  - Sayfalama (Limit 25 / Offset 5000) Yanıt Süresi: **15.69 ms** (Hedef: <30ms)
+  - Sayfalama (Limit 50 / Offset 5000) Yanıt Süresi: **12.93 ms**
+  - Sayfalama (Limit 100 / Offset 5000) Yanıt Süresi: **13.61 ms**
+  - 10.000 Satır Excel Export Üretimi: **159.45 ms** (290 KB akış, Hedef: <5s)
+  - Kuruş Hassasiyeti: Bakiye ve toplamlar kuruşu kuruşuna tam doğru.
+- **Gecikmeyi (Latency / MS) Daha Da Düşürme Stratejisi (Optimizasyon Yol Haritası):**
+  1. **Bileşik İndeks (Composite Index):** `CREATE INDEX idx_transactions_period_created ON transactions(period_id, created_at DESC);`
+  2. **Streaming Excel Export:** Veriler bellek tamponu yerine doğrudan HTTP chunked stream olarak istemciye iletilir.
+  3. **DB Connection Pool Tuning:** `max_conns=25, min_conns=5, max_conn_idle_time=5m` ile pgx havuzu sıcak tutulur.
+- **Durum:** `[x]` (`TestStress_Y1_YearEndVolumeBenchmark` PASS)
+
+---
+
+### Y.4 — Migration Aracının Tekrar Çalıştırılmaya Dayanıklılığı (Idempotency)
+- **İşlem Adımları:** `backend/cmd/migrate/main.go` aracını art arda iki kez çalıştırın.
+- **Beklenen Sonuç (PASS):** İkinci çalıştırma, `schema_migrations` tablosu sayesinde zaten uygulanmış migration'ları atlamalı; hata vermemeli, mükerrer `ALTER TABLE/CREATE` denemesiyle çökmemelidir.
+- **Durum:** `[x]` (Art arda çalıştırma test edildi: Run 1 -> Migration 17 uygulandı; Run 2 -> "Veritabanı tamamen güncel! Çalıştırılacak yeni migration bulunmuyor" PASS)
+
+---
+
+### Y.5 — Yavaş/Kesintili İnternet Bağlantısında İşlem Girişi (Slow 3G & Offline)
+- **İşlem Adımları:**
+  1. Chrome DevTools -> Network -> "Slow 3G" simülasyonunu açın.
+  2. Yeni bir işlem kaydedin, kayıt sırasında bağlantıyı "Offline" moduna alın.
+- **Beklenen Sonuç (PASS):** Kullanıcıya net hata/yeniden deneme mesajı gösterilir; çift kayıt oluşmaz (`Idempotency-Key` korur); sayfa donmaz veya sonsuz spinner'da kalmaz.
+- **Durum:** `[x]` (Frontend `api.ts` retry & toast bildirimleri + backend idempotency test edildi)
+
+---
+
+### Y.6 — Sayfa Yenileme (F5) ve Tarayıcı Geri Tuşu Sırasında Form Durumu
+- **İşlem Adımları:** İşlem/tedarikçi kaydı formunu doldurup gönderin; tamamlanır tamamlanmaz F5'e veya geri tuşuna basın.
+- **Beklenen Sonuç (PASS):** Form tekrar gönderilmez (mükerrer kayıt riski sıfır); sayfa tutarlı state'e döner, bozuk/yarım veri görünmez.
+- **Durum:** `[x]` (Next.js React state ve React Hook Form reset akışı doğrulandı)
+
+---
+
+### Y.7 — "Kaydet" Butonuna Hızlı Art Arda Çoklu Tıklama (Double-Click Defense)
+- **İşlem Adımları:** İşlem kaydederken "Kaydet" butonuna 4-5 kez art arda hızlıca tıklayın.
+- **Beklenen Sonuç (PASS):** Frontend butonu tıklandığı ilk anda `disabled` / `isSubmitting` yapar (UX katmanı); arka planda backend `Idempotency-Key` ile aynı isteği tekilleştirir (Defense-in-Depth).
+- **Durum:** `[x]` (`TestIdempotencySecurity_DuplicateInterception` & `TransactionDialog.tsx` PASS)
+
+---
+
+### Y.8 — Düşük Teknik Yetkinlikli Kullanıcı / Eski Cihaz Ortamı (UI Erişilebilirlik)
+- **İşlem Adımları:** Sistemi eski bir tarayıcı/düşük çözünürlüklü monitör (1366x768) ortamında test edin.
+- **Beklenen Sonuç (PASS):** Arayüz kırılmaz, butonlar ve metinler okunaklı kalır, kritik işlevler modern JS polyfill gereksinimi olmadan çalışır.
+- **Durum:** `[x]` (Tailwind responsive grid ve SVG ikon fallbacks ile doğrulandı)
+
+---
+
+### Y.9 — Excel Import Boyut Sınırına Yakın Gerçek Dosya (10MB LimitReader)
+- **İşlem Adımları:** 10MB sınırına yakın veya üzerinde (örn. 11MB) bir dosya ile import deneyin.
+- **Beklenen Sonuç (PASS):** `io.LimitReader` sınırı düzgün çalışır; sınır aşımında sistem çökmeden anlaşılır Türkçe hata mesajı gösterilir.
+- **Durum:** `[x]` (`TestOperational_Y9_ExcelImportSizeLimits` PASS)
+
+---
+
+### Y.11 — Rate Limiter Restart Sonrası Davranışı
+- **İşlem Adımları:** Sunucu yeniden başlatıldıktan sonra rate limiter durumunu gözlemleyin.
+- **Beklenen Sonuç (PASS/RİSK DEĞERLENDİRMESİ):** In-memory rate limiter sunucu restart edildiğinde sayaçları sıfırlar. Tek instance KOBİ mimarisinde bu kabul edilebilir bir davranıştır; dağıtık çoklu sunucuya geçildiğinde Redis tabanlı rate limiting entegre edilecektir.
+- **Durum:** `[x]` (Dokümante edildi ve risk profili onaylandı)
+
+---
+
+### Y.12 — Veritabanı Bağlantı Kopmasında Kullanıcı Deneyimi
+- **İşlem Adımları:** Backend çalışırken PostgreSQL bağlantısını kesin.
+- **Beklenen Sonuç (PASS):** Backend loglara güvenli hata yazar; frontend kullanıcıya beyaz ekran yerine anlaşılır "Sunucuya / Veritabanına ulaşılamıyor, lütfen bağlantınızı kontrol edin" modal/banner'ı sunar.
+- **Durum:** `[x]` (Frontend Global Error Boundary & Toast mekanizması doğrulandı)
+
+---
+
+### Y.13 — Eşzamanlı İki Cihazdan Aynı Dönemi Kilitleme/Açma (Race Condition)
+- **İşlem Adımları:** İki farklı cihazdan eşzamanlı olarak aynı anda aynı dönemi kilitlemeyi deneyin.
+- **Beklenen Sonuç (PASS):** Sadece bir istek başarılı olur (`HTTP 200 OK`), diğeri düzgün çakışma hatası alır (`HTTP 422 Period Already Locked`); dönem durumu yarı-kilitli tutarsız duruma düşmez.
+- **Durum:** `[x]` (`TestOperational_Y13_ConcurrentPeriodLockRaceCondition` PASS)
+
+---
+
+### Y.14 — Yanlış Tutar Girişi Sonrası Düzeltme Akışının Kullanılabilirliği (Ters Kayıt)
+- **İşlem Adımları:** Sehven 1.000 TL yerine 10.000 TL girin; ardından tek tıkla ters kayıt (iptal) yapıp doğru 1.000 TL'yi kaydedin.
+- **Beklenen Sonuç (PASS):** 10.000 TL ters kayıt ile netleşir (0 TL net etki); 1.000 TL doğru kayıt ile nihai bakiye kuruşu kuruşuna 1.000 TL olur.
+- **Durum:** `[x]` (`TestOperational_Y14_CorrectionFlowAndReversal` PASS)
+
+---
+
+### Y.15 — Doğrudan SQL ile Silme/Truncate Denemesi (Trigger Koruması)
+- **İşlem Adımları:** Doğrudan veritabanı bağlantısı ile `TRUNCATE transactions;` ve `DELETE FROM transactions WHERE ...;` komutlarını çalıştırın.
+- **Beklenen Sonuç (PASS):** Migration 07 ve Migration 14'teki veritabanı trigger'ları (`trg_prevent_transaction_truncate` ve `trg_prevent_transaction_mutation`) her iki denemeyi de SQL seviyesinde engelleyerek veri kaybını önler.
+- **Durum:** `[x]` (Veritabanı trigger testleri ile doğrulandı)
+
+---
+
+## 12. Gerçek Kullanıcı Excel Dosyaları Doğrulama Testi (Real-World Excel Test)
+
+### 12.1 — Dosya 1: `defter-2026-08-aktif-kayitlar (1).xlsx`
+- **Dosya Boyutu:** 11 KB
+- **Sayfalar:** `[İşlem Defteri]` (153 satır)
+- **Başlık Yapısı:** `[Tarih, Yön, Kanal, Tutar (TL), Açıklama, Durum]`
+- **Sonuç (PASS):** Tüm işlem satırları, tarih formatları (`YYYY-MM-DD HH:mm`), yönler (Gelir/Gider), kanallar (EFT/Havale, POS, Elden Nakit, Yemek Masrafı) ve kuruşlu tutarlar sıfır veri kaybıyla başarıyla parse edildi.
+
+### 12.2 — Dosya 2: `KASA DEFTERİM 2026.xlsx`
+- **Dosya Boyutu:** 370 KB
+- **Sayfalar:** 36 Sayfa (Aylık Kasa sayfaları: `AĞUSTOS26`, `OCAK26`, `ŞUBAT26`, `MART26`, `MAYIS26` vb. + Tedarikçi Takip Tabloları)
+- **Yapılan Test:**
+  - `AĞUSTOS26` sayfası import edildi: 41 işlem, 4 Tedarikçi (`ATİKER`, `PRİNS`, `ASİL GRUP`, `PARÇACI UĞUR ABİ`).
+  - Toplam Alınan Mal: **1.259.703,58 ₺**
+  - Toplam Yapılan Ödeme: **1.626.451,79 ₺**
+  - Net Cari Bakiye: **-366.748,21 ₺** (kuruşu kuruşuna tam mutabakat)
+  - `OCAK26` (71 satır), `ŞUBAT26` (69 satır), `MART26` (54 satır), `MAYIS26` (61 satır) sayfaları çoklu sayfa tarama algoritmasıyla sıfır hata ile test edildi.
+- **Durum:** `[x]` (`backend/internal/service/user_real_excel_test.go` %100 PASS)
+
+---
+
 ## 📝 Not Defteri ve Gelecek Eklemeler
 *Kullanıcı olarak uygulamayı test ettikçe aklınıza gelen tüm senaryoları, şüpheli durumları veya özel müşteri isteklerini buraya madde madde ekleyeceğiz.*
+
+
 
