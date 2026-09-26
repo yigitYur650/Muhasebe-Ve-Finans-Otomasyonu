@@ -13,6 +13,20 @@ services:
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: TELEGRAM_ALERTS_ENABLED
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GDRIVE_BACKUP_ENABLED
+        value: "false"
+      - key: GDRIVE_BACKUP_FOLDER_ID
+        sync: false
 
   # Next.js 15 Frontend Web Service
   - type: web

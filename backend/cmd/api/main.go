@@ -10,6 +10,8 @@ import (
 	"deftersystem/backend/internal/handler"
 	"deftersystem/backend/internal/repository"
 	"deftersystem/backend/internal/service"
+	"deftersystem/backend/pkg/scheduler"
+	"deftersystem/backend/pkg/telegram"
 )
 
 func main() {
@@ -41,6 +43,14 @@ func main() {
 		}
 	}
 
+	// Initialize Telegram Alert & Notification Notifier
+	tg := telegram.InitGlobal()
+	if tg.IsEnabled() {
+		log.Println("🔔 Telegram Alerting System is ENABLED (Real-time alarm dispatch active)")
+	} else {
+		log.Println("ℹ️  Telegram Alerting System is DISABLED (Set TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID to enable)")
+	}
+
 	dbURL := os.Getenv("DATABASE_URL")
 
 	log.Printf("Connecting to live PostgreSQL database...")
@@ -64,6 +74,10 @@ func main() {
 	supplierSvc := service.NewSupplierService(supplierRepo, periodRepo)
 
 	handler.SetupRouter(app, periodSvc, txSvc, periodRepo, txRepo, idemRepo, tenantSvc, tenantRepo, secRepo, supplierSvc, supplierRepo)
+
+	// Start Automated 3-2-1 Daily Backup Scheduler (Runs daily at 03:00)
+	backupOrchestrator := scheduler.NewBackupOrchestrator(pool)
+	backupOrchestrator.StartDailyCron()
 
 	port := os.Getenv("PORT")
 	if port == "" {

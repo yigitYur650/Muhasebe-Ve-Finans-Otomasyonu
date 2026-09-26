@@ -22,6 +22,19 @@
 
 ---
 
+### [BUG-260925-01] Otomatik SQL Yedekleme Motorunda UUID, Decimal ve DDL Schema Bütünlüğü Düzeltmesi
+
+- **Tarih / Sprint:** 2026-09-25 / Sprint 14 & Yedekleme Motoru
+- **Etkilenen Katman / Dosya:** `backend/pkg/backup/exporter.go`
+- **Belirti (Symptom):** 1) `.sql.gz` dump dosyasındaki UUID kolonlarının raw byte array (`[225 144 ...]`) olarak basılması. 2) `NUMERIC` tutar alanlarının bellek içi Go struct formatı (`{2890000 -2 false...}`) şeklinde dökülmesi. 3) `CREATE TABLE` DDL şema tanımlarının bulunmaması.
+- **Kök Neden (Root Cause):** `pgx` sürücüsünün `rows.Values()` çağrısında PostgreSQL `UUID` ve `NUMERIC` tiplerini generic `[16]byte` ve `pgtype.Numeric` nesnelerine çözümlemesi ve düz dize dönüştürücünün bu nesneleri ham Go formatıyla ekrana basması.
+- **Uygulanan Düzeltme (Fix):** `formatSQLValue()` fonksiyonu geliştirildi; 16-baytlık UUID'ler canonical UUID formatına (`%02x%02x%02x%02x-%02x%02x-...`), `pgtype.Numeric` ve `driver.Valuer` nesneleri kuruş hassasiyetli decimal dizgisine (`val.StringFixed(2)` -> `'28900.00'`), `time.Time` nesneleri standart RFC3339 formatına dönüştürüldü. Ayrıca yedeğin boş bir veritabanına doğrudan yüklenebilmesi için `CREATE TABLE IF NOT EXISTS` DDL şeması dosya başına eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır. Üretilen `.sql` dosyaları doğrudan standart `psql -f` ile sıfır hata ile restore edilebilir tam bağımsız (self-contained) hale getirildi.
+- **Doğrulama & Test Sonucu (Verification):** `go run cmd/backup/main.go` çalıştırıldı. 184 kayıtlık veritabanı dump'ı `inspect_backup` ile incelendi; tüm UUID'lerin (`'99bbefcf-2238-483c-a777-47e80d5d0de5'`), tutarların (`'17950.00'`) ve DDL şemasının eksiksiz ve hatasız üretildiği doğrulandı.
+- **Durum:** `RESOLVED`
+
+---
+
 ### [BUG-260820-01] Standart Postgres / Superuser Rolü Altında Multi-Tenant RLS İzolasyon Baypası ve FORCE ROW LEVEL SECURITY Düzeltmesi
 
 - **Tarih / Sprint:** 2026-08-20 / Sprint 1

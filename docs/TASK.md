@@ -144,9 +144,36 @@
 - [x] Test doğrulamaları: `go test -v ./...` %100 PASS (Tüm birim, entegrasyon ve custom claim testleri dahil) (PASS, 2026-09-24)
 - [x] Dokümantasyon (`RELEASE_NOTES.md`, `PROJECT_MAP_FOR_LLM.md`, `BUG_AND_FIX.md`, `SECURITY_AUDIT_REPORT.md`, `TASK.md`) güncellenir (PASS, 2026-09-24)
 
+## Sprint 13 — Telegram Anlık Alarm & Hata Bildirim Motoru
+
+- [x] `backend/pkg/telegram/client.go`: Hafif ve sıfır harici bağımlılıklı Telegram Bot API HTTP istemcisi (PASS, 2026-09-25)
+- [x] `backend/pkg/telegram/global.go`: Asenkron non-blocking goroutine kuyruğu, Markdown/HTML şablonları ve alert throttling (spam önleme) (PASS, 2026-09-25)
+- [x] `backend/internal/handler/router.go` (recover) ve Fiber `CustomErrorHandler` entegrasyonu (Panic ve 500+ alarmları) (PASS, 2026-09-25)
+- [x] `backend/cmd/test_alert/main.go` test ve doğrulama CLI aracı (PASS, 2026-09-25)
+- [x] `.env.example` ve `backend/.env` içine Telegram konfigürasyon parametrelerinin eklenmesi (PASS, 2026-09-25)
+
+
+## Sprint 14 — Google Drive & 3-2-1 Otomatik Günlük Yedekleme & Retention Motoru
+
+- [x] `backend/pkg/backup/exporter.go`: Atomik veritabanı dump/snapshot ve `.sql.gz` sıkıştırma motoru (PASS, 2026-09-25)
+- [x] `backend/pkg/gdrive/uploader.go`: Native Google Drive REST API istemcisi, streaming upload ve 30 günlük retention temizliği (PASS, 2026-09-25)
+- [x] `backend/pkg/telegram/document.go`: Yedeklenen `.sql.gz` dosyasını Telegram sohbetine otomatik gönderme (PASS, 2026-09-25)
+- [x] `backend/pkg/scheduler/scheduler.go`: Gece 03:00 otomatik 3-2-1 cron zamanlayıcısı ve Telegram raporlama (PASS, 2026-09-25)
+- [x] `backend/cmd/backup/main.go`: Manuel yedekleme tetikleme CLI aracı (PASS, 2026-09-25)
+
+## Sprint 15 — Otomatik Dönem Kilitleme & JWT 401 Seamless Auto-Refresh Güçlendirmesi
+
+- [x] `migrations/06_period_rollover_fn.sql` & `supabase_combined_schema.sql`: `open_next_period()` içine yeni ay açılırken önceki açık dönemi atomik olarak kilitleme kuralı eklendi (PASS, 2026-09-25)
+- [x] `frontend/src/lib/api.ts`: 401 Unauthorized durumunda `supabase.auth.refreshSession()` ile otomatik sessiz token yenileme ve isteği tekrarlama (seamless retry) entegrasyonu (PASS, 2026-09-25)
+- [x] `backend/internal/service/period_service_test.go`: `TestPeriodService_OpenNextPeriod_Validation` unit testi yazıldı (PASS, 2026-09-25)
+- [x] Test doğrulamaları: `go test ./...` %100 PASS ve `npx tsc --noEmit` 0 hata ile doğrulandı (PASS, 2026-09-25)
+
+
+
 ---
 
 ## Not
 Sprint 0'daki "AÇIK KARAR" maddesi onaylanmadan Sprint 1 şema tasarımına başlanmamalı — bkz. PROJECT_BRIEF.md Bölüm 3.
+
 
 

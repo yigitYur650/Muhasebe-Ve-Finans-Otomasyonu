@@ -136,3 +136,36 @@ func TestPeriodService_PennyAccurateCalculation(t *testing.T) {
 
 	assert.True(t, closing.Equal(expected), "Penny-accurate decimal calculation MUST match 12250.55")
 }
+
+func TestPeriodService_OpenNextPeriod_Validation(t *testing.T) {
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	mockPeriodRepo := new(MockPeriodRepo)
+	mockTenantRepo := new(MockTenantRepo)
+	mockTxRepo := new(MockTransactionRepo)
+	svc := service.NewPeriodService(mockPeriodRepo, mockTenantRepo, mockTxRepo)
+
+	t.Run("invalid label format rejected", func(t *testing.T) {
+		_, err := svc.OpenNextPeriod(ctx, tenantID, "invalid-label")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "geçersiz dönem etiketi formatı")
+	})
+
+	t.Run("valid label format accepted", func(t *testing.T) {
+		expectedPeriod := &domain.Period{
+			ID:              uuid.New(),
+			TenantID:        tenantID,
+			Label:           "2026-09",
+			StartingBalance: decimal.NewFromFloat(893704.00),
+			Status:          domain.PeriodStatusOpen,
+		}
+		mockPeriodRepo.On("OpenNextPeriod", ctx, tenantID, "2026-09").Return(expectedPeriod, nil)
+
+		p, err := svc.OpenNextPeriod(ctx, tenantID, "2026-09")
+		assert.NoError(t, err)
+		assert.Equal(t, "2026-09", p.Label)
+		assert.True(t, p.StartingBalance.Equal(decimal.NewFromFloat(893704.00)))
+	})
+}
+

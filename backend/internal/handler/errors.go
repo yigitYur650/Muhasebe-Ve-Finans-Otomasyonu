@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"deftersystem/backend/internal/domain"
+	"deftersystem/backend/pkg/telegram"
 )
 
 // CustomErrorHandler translates domain and framework errors into standardized JSON responses.
@@ -64,6 +65,9 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 
 		default:
 			log.Printf("[ERROR] Internal unhandled error: %v", err)
+			// Trigger Telegram alert for critical 500 internal server errors
+			tenantID, _ := c.Locals("tenant_id").(string)
+			telegram.Global().SendAlert("SUNUCU HATASI (500)", err.Error(), c.Method(), c.Path(), tenantID, c.IP(), "")
 		}
 	}
 
@@ -75,3 +79,4 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 		},
 	})
 }
+

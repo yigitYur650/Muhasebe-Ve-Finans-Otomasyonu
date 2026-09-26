@@ -150,6 +150,13 @@ BEGIN
         INTO v_closing_balance
         FROM public.transactions
         WHERE period_id = v_prev_period.id;
+
+        -- Önceki açık dönemi otomatik kilitle (Sistemde daima tek açık dönem kuralı)
+        IF v_prev_period.status = 'open' THEN
+            UPDATE public.periods
+            SET status = 'locked', locked_at = now()
+            WHERE id = v_prev_period.id;
+        END IF;
     END IF;
 
     INSERT INTO public.periods (tenant_id, label, starting_balance, status)

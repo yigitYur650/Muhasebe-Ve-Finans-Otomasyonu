@@ -35,14 +35,15 @@ export interface ApiOptions extends RequestInit {
   userRole?: string;
   idempotencyKey?: string;
   authToken?: string;
+  isRetry?: boolean;
 }
 
 /**
  * Centralized API client for communicating with the Go Backend.
- * Automatically injects Supabase Bearer token and tenant headers.
+ * Automatically injects Supabase Bearer token, handles session refresh on 401, and retries seamlessly.
  */
 export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<ApiEnvelope<T>> {
-  const { tenantId, userId, userRole, idempotencyKey, authToken, headers, ...customConfig } = options;
+  const { tenantId, userId, userRole, idempotencyKey, authToken, isRetry, headers, ...customConfig } = options;
 
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -50,10 +51,11 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
 
   // Automatically attach Supabase JWT access token if available
   let token = authToken;
+  let supabaseClient: ReturnType<typeof createClient> | null = null;
   if (typeof window !== 'undefined') {
     try {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
+      supabaseClient = createClient();
+      const { data } = await supabaseClient.auth.getSession();
       if (data?.session?.access_token) {
         token = data.session.access_token;
       }
@@ -82,6 +84,24 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
 
   try {
     const response = await fetch(getApiUrl(endpoint), config);
+
+    // Handle 401 Unauthorized with automatic session refresh & retry
+    if (response.status === 401 && !isRetry && typeof window !== 'undefined' && supabaseClient) {
+      try {
+        const { data: refreshData, error: refreshErr } = await supabaseClient.auth.refreshSession();
+        if (!refreshErr && refreshData?.session?.access_token) {
+          // Retry the request with the new fresh token
+          return await apiFetch<T>(endpoint, {
+            ...options,
+            authToken: refreshData.session.access_token,
+            isRetry: true,
+          });
+        }
+      } catch {
+        // Refresh failed, proceed to return 401 error
+      }
+    }
+
     const data: ApiEnvelope<T> = await response.json();
     return data;
   } catch (error: any) {

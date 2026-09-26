@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -13,6 +15,7 @@ import (
 	"deftersystem/backend/internal/handler/middleware"
 	"deftersystem/backend/internal/repository"
 	"deftersystem/backend/internal/service"
+	"deftersystem/backend/pkg/telegram"
 )
 
 // SetupRouter registers middleware, error handler, and API routes on the Fiber instance.
@@ -25,7 +28,22 @@ func SetupRouter(
 	idemRepo domain.IdempotencyRepository,
 	tenantServices ...interface{},
 ) {
-	app.Use(recover.New())
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace: true,
+		StackTraceHandler: func(c *fiber.Ctx, e interface{}) {
+			stack := string(debug.Stack())
+			tenantID, _ := c.Locals("tenant_id").(string)
+			telegram.Global().SendAlert(
+				"PANIC RECOVERY (ÇÖKME ENGELLENDİ)",
+				fmt.Sprintf("Panic oluştu: %v", e),
+				c.Method(),
+				c.Path(),
+				tenantID,
+				c.IP(),
+				stack,
+			)
+		},
+	}))
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))

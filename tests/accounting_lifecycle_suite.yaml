@@ -164,3 +164,76 @@ rollover_phase_6:
     label: "2026-09"
   expected_status: 201
   expected_new_starting_balance: "18300.50" # Önceki dönemin kapanış bakiyesi
+  expected_previous_period_status: "locked"  # Önceki dönem otomatik kilitlenir
+
+# ------------------------------------------------------------------------------
+# 7. AŞAMA: TEDARİKÇİ & PARÇACI CARİLERİ TESTİ
+# ------------------------------------------------------------------------------
+supplier_phase_7:
+  - id_alias: "sup_1"
+    name: "Yeni Tedarikçi Oluşturma"
+    endpoint: "/suppliers"
+    method: "POST"
+    payload:
+      name: "Özkan Otomotiv & Yedek Parça Ltd."
+      phone: "+905551234567"
+      category: "yedek_parca"
+    expected_status: 201
+
+  - id_alias: "sup_tx_1"
+    name: "Tedarikçi Alış Faturası Girişi (Borç/Debt)"
+    endpoint: "/suppliers/{sup_1}/transactions"
+    method: "POST"
+    payload:
+      type: "purchase"
+      amount: "12500.00"
+      description: "Fren balatası ve filtre alımı"
+    expected_status: 201
+
+  - id_alias: "sup_tx_2"
+    name: "Tedarikçiye Ödeme Yapma (Alacak/Payment)"
+    endpoint: "/suppliers/{sup_1}/transactions"
+    method: "POST"
+    payload:
+      type: "payment"
+      amount: "7500.00"
+      description: "Havale ile kısmi ödeme"
+    expected_status: 201
+
+  - name: "Tedarikçi Bakiye Doğrulama"
+    endpoint: "/suppliers/{sup_1}"
+    method: "GET"
+    expected_current_balance: "5000.00" # 12500 - 7500
+
+# ------------------------------------------------------------------------------
+# 8. AŞAMA: TELEGRAM ANLIK ALARM & HATA BİLDİRİMİ SİSTEMİ
+# ------------------------------------------------------------------------------
+telegram_alert_phase_8:
+  name: "Telegram 500 & Panic Alert Bildirim Testi"
+  package: "deftersystem/backend/pkg/telegram"
+  test_command: "go test -v ./pkg/telegram"
+  expected_result: "PASS"
+  alert_channels:
+    bot_token_configured: true
+    chat_id_configured: true
+    events:
+      - "panic_recovery"
+      - "500_internal_server_error"
+      - "daily_backup_success"
+      - "daily_backup_failure"
+
+# ------------------------------------------------------------------------------
+# 9. AŞAMA: GOOGLE DRIVE & TELEGRAM 3-2-1 OTOMATİK YEDEKLEME MOTORU
+# ------------------------------------------------------------------------------
+backup_engine_phase_9:
+  name: "3-2-1 Automated GZip SQL Backup Engine"
+  package: "deftersystem/backend/pkg/backup"
+  cron_schedule: "0 3 * * *" # Her gün 03:00
+  export_features:
+    - "canonical_uuid_preservation"
+    - "exact_decimal_numeric_15_2"
+    - "gzip_stream_compression"
+    - "gdrive_multipart_upload"
+    - "telegram_document_dispatch"
+    - "30_day_retention_cleanup"
+
