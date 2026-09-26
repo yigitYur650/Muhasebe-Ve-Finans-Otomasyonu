@@ -42,8 +42,8 @@ export default function LoginPage() {
         document.cookie = "defter_session=active; path=/; max-age=86400";
         setSuccessMsg(tAuth("loginSuccess"));
         setTimeout(() => {
-          router.push(`/${locale}`);
-        }, 600);
+          window.location.href = `/${locale}`;
+        }, 300);
       } else {
         setErrorMsg(tAuth("invalidCredentials"));
         document.cookie = "defter_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";

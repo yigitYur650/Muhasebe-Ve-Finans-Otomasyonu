@@ -21,8 +21,8 @@ export async function middleware(request: NextRequest) {
     const isLoginPage = pathname.includes('/login');
 
     // 3. Initialize Supabase SSR client inside Edge Middleware
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lvsngrrdzjhbawhcuzqz.supabase.co';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2c25ncnJkempoYmF3aGN1enF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MzAxMzEsImV4cCI6MjEwNDEwNjEzMX0.yilfkY7aUMr4j5Q0oj2oH8kGH4fIelCNZKDjo_VOfls';
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {

@@ -1,6 +1,6 @@
 import { createClient } from './supabase/client';
 
-const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1';
 
 export function getApiBaseUrl(): string {
   let url = rawApiUrl.trim().replace(/\/+$/, '');
