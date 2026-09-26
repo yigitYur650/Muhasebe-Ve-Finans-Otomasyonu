@@ -103,16 +103,6 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
     }
 
     const data: ApiEnvelope<T> = await response.json();
-
-    // If still 401/403 and in browser, sign out stale local session if expired
-    if ((response.status === 401 || response.status === 403) && typeof window !== 'undefined' && supabaseClient && !window.location.pathname.includes('/login')) {
-      try {
-        await supabaseClient.auth.signOut();
-      } catch {
-        // Ignore signout error
-      }
-    }
-
     return data;
   } catch (error: any) {
     return {
