@@ -48,6 +48,9 @@ var (
 	jwksOnce        sync.Once
 )
 
+// DefaultSupabaseURL is the active Supabase project endpoint
+const DefaultSupabaseURL = "https://lvsngrrdzjhbawhcuzqz.supabase.co"
+
 // GetJWKSCache returns the singleton JWKS cache initialized with Supabase endpoint
 func GetJWKSCache() *JWKSCache {
 	jwksOnce.Do(func() {
@@ -59,12 +62,14 @@ func GetJWKSCache() *JWKSCache {
 			}
 			if supaURL != "" {
 				jwksURL = strings.TrimRight(supaURL, "/") + "/auth/v1/.well-known/jwks.json"
+			} else {
+				jwksURL = DefaultSupabaseURL + "/auth/v1/.well-known/jwks.json"
 			}
 		}
 		globalJWKSCache = &JWKSCache{
 			keys:    make(map[string]interface{}),
 			jwksURL: jwksURL,
-			client:  &http.Client{Timeout: 6 * time.Second},
+			client:  &http.Client{Timeout: 10 * time.Second},
 		}
 	})
 	return globalJWKSCache
@@ -120,7 +125,7 @@ func (c *JWKSCache) refresh() error {
 		if supaURL != "" {
 			c.jwksURL = strings.TrimRight(supaURL, "/") + "/auth/v1/.well-known/jwks.json"
 		} else {
-			return fmt.Errorf("no SUPABASE_URL or SUPABASE_JWKS_URL configured")
+			c.jwksURL = DefaultSupabaseURL + "/auth/v1/.well-known/jwks.json"
 		}
 	}
 

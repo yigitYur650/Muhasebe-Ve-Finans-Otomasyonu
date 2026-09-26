@@ -190,17 +190,34 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 
 		// Verify Algorithm: Reject 'none' or empty algorithm explicitly
 		if alg, ok := claims["alg"].(string); ok && strings.ToLower(alg) == "none" {
-			if isExplicitDevOrTest {
-				log.Printf("⚠️ [AUTH REJECT] 'none' algoritması reddedildi")
-			}
+			log.Printf("⚠️ [AUTH REJECT] 'none' algoritması reddedildi")
 			return domain.ErrUnauthorized
 		}
 
 		// Verify Audience Claim ("authenticated")
-		if aud, ok := claims["aud"].(string); !ok || aud != "authenticated" {
-			if isExplicitDevOrTest {
-				log.Printf("⚠️ [AUTH REJECT] Beklenmeyen aud: %v (Beklenen: authenticated)", claims["aud"])
+		audValid := false
+		switch a := claims["aud"].(type) {
+		case string:
+			if a == "authenticated" {
+				audValid = true
 			}
+		case []interface{}:
+			for _, item := range a {
+				if itemStr, ok := item.(string); ok && itemStr == "authenticated" {
+					audValid = true
+					break
+				}
+			}
+		case []string:
+			for _, item := range a {
+				if item == "authenticated" {
+					audValid = true
+					break
+				}
+			}
+		}
+		if !audValid {
+			log.Printf("⚠️ [AUTH REJECT] Beklenmeyen aud claim: %v (Beklenen: authenticated)", claims["aud"])
 			return domain.ErrUnauthorized
 		}
 
@@ -213,6 +230,8 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 			}
 			if supaURL != "" {
 				expectedIssuer = strings.TrimRight(supaURL, "/") + "/auth/v1"
+			} else {
+				expectedIssuer = DefaultSupabaseURL + "/auth/v1"
 			}
 		}
 		if expectedIssuer != "" {
@@ -220,9 +239,7 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 				cleanIss := strings.TrimRight(iss, "/")
 				cleanExpected := strings.TrimRight(expectedIssuer, "/")
 				if cleanIss != cleanExpected && cleanIss != "supabase" {
-					if isExplicitDevOrTest {
-						log.Printf("⚠️ [AUTH REJECT] Beklenmeyen iss: %v (Beklenen: %v)", iss, expectedIssuer)
-					}
+					log.Printf("⚠️ [AUTH REJECT] Beklenmeyen iss: %v (Beklenen: %v)", iss, expectedIssuer)
 					return domain.ErrUnauthorized
 				}
 			}
@@ -232,17 +249,13 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 		now := time.Now().Unix()
 		if expFloat, ok := claims["exp"].(float64); ok {
 			if now > int64(expFloat) {
-				if isExplicitDevOrTest {
-					log.Printf("⚠️ [AUTH REJECT] Token süresi dolmuş (exp: %v, now: %v)", int64(expFloat), now)
-				}
+				log.Printf("⚠️ [AUTH REJECT] Token süresi dolmuş (exp: %v, now: %v)", int64(expFloat), now)
 				return domain.ErrUnauthorized
 			}
 		}
 		if nbfFloat, ok := claims["nbf"].(float64); ok {
 			if now < int64(nbfFloat) {
-				if isExplicitDevOrTest {
-					log.Printf("⚠️ [AUTH REJECT] Token henüz geçerli değil (nbf: %v, now: %v)", int64(nbfFloat), now)
-				}
+				log.Printf("⚠️ [AUTH REJECT] Token henüz geçerli değil (nbf: %v, now: %v)", int64(nbfFloat), now)
 				return domain.ErrUnauthorized
 			}
 		}
@@ -250,6 +263,7 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 		// Extract User ID (sub) strictly from cryptographic token claims
 		subStr, ok := claims["sub"].(string)
 		if !ok {
+			log.Printf("⚠️ [AUTH REJECT] sub claim bulunamadı")
 			return domain.ErrUnauthorized
 		}
 		userID, err := uuid.Parse(subStr)
