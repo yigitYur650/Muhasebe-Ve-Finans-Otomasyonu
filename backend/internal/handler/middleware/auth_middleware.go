@@ -217,7 +217,9 @@ func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.
 		}
 		if expectedIssuer != "" {
 			if iss, ok := claims["iss"].(string); ok {
-				if iss != expectedIssuer && iss != "supabase" {
+				cleanIss := strings.TrimRight(iss, "/")
+				cleanExpected := strings.TrimRight(expectedIssuer, "/")
+				if cleanIss != cleanExpected && cleanIss != "supabase" {
 					if isExplicitDevOrTest {
 						log.Printf("⚠️ [AUTH REJECT] Beklenmeyen iss: %v (Beklenen: %v)", iss, expectedIssuer)
 					}

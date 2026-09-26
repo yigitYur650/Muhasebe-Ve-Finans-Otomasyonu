@@ -24,6 +24,10 @@ type StepTx struct {
 }
 
 func main() {
+	if os.Getenv("ALLOW_TEST_DATA_INJECTION") != "true" && len(os.Args) < 2 {
+		log.Fatal("🛑 GÜVENLİK KORUMASI: Bu test aracı veritabanına test kayıtları ekler. Canlı verileri korumak için lütfen 'ALLOW_TEST_DATA_INJECTION=true' ortam değişkeni veya hedef test dönem ID'si verin.")
+	}
+
 	baseURL := "http://localhost:8080/api/v1"
 	tenantID := os.Getenv("TEST_TENANT_ID")
 	if tenantID == "" {

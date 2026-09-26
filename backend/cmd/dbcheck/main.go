@@ -9,44 +9,35 @@ import (
 )
 
 func main() {
-	urls := []string{
-		"postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require",
-		"postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require",
+	dbURL := "postgres://postgres.lvsngrrdzjhbawhcuzqz:nptn0P5vEbyLm6iM@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		fmt.Printf("Pool error: %v\n", err)
+		return
+	}
+	defer pool.Close()
+
+	var tID, tName, tSlug string
+	err = pool.QueryRow(ctx, "SELECT id, name, slug FROM public.tenants ORDER BY created_at ASC LIMIT 1").Scan(&tID, &tName, &tSlug)
+	if err != nil {
+		fmt.Printf("❌ Tenants tablosunda kayıt yok veya sorgu hatası: %v\n", err)
+	} else {
+		fmt.Printf("✅ Birincil Tenant Bulundu: ID=%s | Name=%s | Slug=%s\n", tID, tName, tSlug)
 	}
 
-	for _, dbURL := range urls {
-		fmt.Printf("Testing connection: %s\n", dbURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		pool, err := pgxpool.New(ctx, dbURL)
-		if err != nil {
-			fmt.Printf("  Pool init error: %v\n", err)
-			cancel()
-			continue
+	rows, err := pool.Query(ctx, "SELECT id, email FROM auth.users")
+	if err != nil {
+		fmt.Printf("Auth users query error: %v\n", err)
+	} else {
+		fmt.Println("\n👥 SUPABASE AUTH KULLANICILARI (auth.users):")
+		for rows.Next() {
+			var uID, email string
+			_ = rows.Scan(&uID, &email)
+			fmt.Printf("   User: ID=%s | Email=%s\n", uID, email)
 		}
-
-		err = pool.Ping(ctx)
-		if err != nil {
-			fmt.Printf("  Ping error: %v\n", err)
-		} else {
-			fmt.Printf("  🎉 SUCCESS! Connected successfully!\n")
-			var count int
-			_ = pool.QueryRow(ctx, "SELECT count(*) FROM public.periods").Scan(&count)
-			fmt.Printf("  Periods count in Supabase: %d\n", count)
-		}
-		pool.Close()
-		cancel()
+		rows.Close()
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSub(s, substr))
-}
-
-func containsSub(s, substr string) bool {
-	for i := 0; i+len(substr) <= len(s); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
