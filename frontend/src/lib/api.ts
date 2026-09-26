@@ -98,11 +98,21 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
           });
         }
       } catch {
-        // Refresh failed, proceed to return 401 error
+        // Refresh failed
       }
     }
 
     const data: ApiEnvelope<T> = await response.json();
+
+    // If still 401 and in browser, sign out stale local session to avoid infinite loop
+    if (response.status === 401 && typeof window !== 'undefined' && supabaseClient && !window.location.pathname.includes('/login')) {
+      try {
+        await supabaseClient.auth.signOut();
+      } catch {
+        // Ignore signout error
+      }
+    }
+
     return data;
   } catch (error: any) {
     return {
