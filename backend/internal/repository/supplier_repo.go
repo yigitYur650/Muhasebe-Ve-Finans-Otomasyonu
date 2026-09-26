@@ -58,12 +58,14 @@ func (r *PostgresSupplierRepository) GetSuppliersWithBalances(ctx context.Contex
 	suppliers := make([]domain.Supplier, 0)
 	for rows.Next() {
 		var s domain.Supplier
+		var txCount int64
 		if err := rows.Scan(
 			&s.ID, &s.TenantID, &s.Name, &s.IsActive, &s.CreatedAt,
-			&s.TotalPurchase, &s.TotalPayment, &s.Balance, &s.TransactionCount,
+			&s.TotalPurchase, &s.TotalPayment, &s.Balance, &txCount,
 		); err != nil {
 			return nil, MapSQLError(err)
 		}
+		s.TransactionCount = int(txCount)
 		suppliers = append(suppliers, s)
 	}
 
@@ -88,13 +90,15 @@ func (r *PostgresSupplierRepository) GetSupplierByID(ctx context.Context, tenant
 		GROUP BY s.id, s.tenant_id, s.name, s.is_active, s.created_at
 	`
 	var s domain.Supplier
+	var txCount int64
 	err := r.pool.QueryRow(ctx, query, tenantID, supplierID).Scan(
 		&s.ID, &s.TenantID, &s.Name, &s.IsActive, &s.CreatedAt,
-		&s.TotalPurchase, &s.TotalPayment, &s.Balance, &s.TransactionCount,
+		&s.TotalPurchase, &s.TotalPayment, &s.Balance, &txCount,
 	)
 	if err != nil {
 		return nil, MapSQLError(err)
 	}
+	s.TransactionCount = int(txCount)
 	return &s, nil
 }
 
@@ -172,9 +176,9 @@ func (r *PostgresSupplierRepository) GetTransactionByID(ctx context.Context, ten
 			st.id, 
 			st.tenant_id, 
 			st.supplier_id, 
-			s.name AS supplier_name,
+			COALESCE(s.name, '') AS supplier_name,
 			st.period_id, 
-			p.label AS period_label,
+			COALESCE(p.label, '') AS period_label,
 			COALESCE(st.invoice_no, ''), 
 			COALESCE(st.customer_name, ''), 
 			COALESCE(st.document_status, ''), 
@@ -186,8 +190,8 @@ func (r *PostgresSupplierRepository) GetTransactionByID(ctx context.Context, ten
 			st.created_at,
 			st.reversed_by
 		FROM public.supplier_transactions st
-		JOIN public.suppliers s ON st.supplier_id = s.id
-		JOIN public.periods p ON st.period_id = p.id
+		LEFT JOIN public.suppliers s ON st.supplier_id = s.id
+		LEFT JOIN public.periods p ON st.period_id = p.id
 		WHERE st.tenant_id = $1 AND st.id = $2
 	`
 	var tx domain.SupplierTransaction
@@ -336,11 +340,11 @@ func (r *PostgresSupplierRepository) GetAllTransactions(
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(st.id)
 		FROM public.supplier_transactions st
-		JOIN public.suppliers s ON st.supplier_id = s.id
+		LEFT JOIN public.suppliers s ON st.supplier_id = s.id
 		WHERE %s
 	`, whereSQL)
 
-	var totalCount int
+	var totalCount int64
 	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, 0, MapSQLError(err)
 	}
@@ -351,9 +355,9 @@ func (r *PostgresSupplierRepository) GetAllTransactions(
 			st.id, 
 			st.tenant_id, 
 			st.supplier_id, 
-			s.name AS supplier_name,
+			COALESCE(s.name, '') AS supplier_name,
 			st.period_id, 
-			p.label AS period_label,
+			COALESCE(p.label, '') AS period_label,
 			COALESCE(st.invoice_no, ''), 
 			COALESCE(st.customer_name, ''), 
 			COALESCE(st.document_status, ''), 
@@ -365,8 +369,8 @@ func (r *PostgresSupplierRepository) GetAllTransactions(
 			st.created_at,
 			st.reversed_by
 		FROM public.supplier_transactions st
-		JOIN public.suppliers s ON st.supplier_id = s.id
-		JOIN public.periods p ON st.period_id = p.id
+		LEFT JOIN public.suppliers s ON st.supplier_id = s.id
+		LEFT JOIN public.periods p ON st.period_id = p.id
 		WHERE %s
 		ORDER BY st.tx_date DESC, st.created_at DESC
 	`, whereSQL)
@@ -400,7 +404,7 @@ func (r *PostgresSupplierRepository) GetAllTransactions(
 		transactions = append(transactions, tx)
 	}
 
-	return transactions, totalCount, nil
+	return transactions, int(totalCount), nil
 }
 
 func (r *PostgresSupplierRepository) BatchInsertTransactions(
@@ -476,19 +480,23 @@ func (r *PostgresSupplierRepository) GetSummary(ctx context.Context, tenantID uu
 	}
 
 	var summary domain.SupplierSummary
+	var totalRows int64
 	err := r.pool.QueryRow(ctx, query.String(), args...).Scan(
 		&summary.TotalPurchases,
 		&summary.TotalPayments,
 		&summary.NetBalance,
-		&summary.TotalTransactionRows,
+		&totalRows,
 	)
 	if err != nil {
 		return nil, MapSQLError(err)
 	}
+	summary.TotalTransactionRows = int(totalRows)
 
 	// Count active suppliers
 	countQuery := `SELECT COUNT(id) FROM public.suppliers WHERE tenant_id = $1 AND is_active = true`
-	_ = r.pool.QueryRow(ctx, countQuery, tenantID).Scan(&summary.ActiveSupplierCount)
+	var activeCount int64
+	_ = r.pool.QueryRow(ctx, countQuery, tenantID).Scan(&activeCount)
+	summary.ActiveSupplierCount = int(activeCount)
 
 	return &summary, nil
 }

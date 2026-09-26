@@ -22,6 +22,25 @@
 
 ---
 
+### [BUG-260927-36] Tedarikçi (Suppliers) Uç Noktalarında HTTP 500 Hatası, Eksik Supabase Tabloları ve int64 Scan Uyuşmazlığı Düzeltmesi
+
+- **Tarih / Sprint:** 2026-09-27 / Canlı Ortam Kararlılığı & Suppliers Modülü
+- **Etkilenen Katman / Dosya:** `backend/internal/repository/supplier_repo.go`, `migrations/15_create_suppliers.sql`, `migrations/16_add_reversed_by_to_supplier_transactions.sql`
+- **Belirti (Symptom):** Kullanıcı oturum açıp tedarikçiler sekmesini açtığında veya sayfa yüklendiğinde `/api/v1/suppliers`, `/api/v1/suppliers/summary` ve `/api/v1/suppliers/transactions` istekleri `500 Internal Server Error` dönmesi.
+- **Kök Neden (Root Cause):**
+  1. Canlı Supabase veritabanında `public.suppliers` ve `public.supplier_transactions` tablolarının migration çalıştırılmadığı için mevcut olmaması (`relation "public.supplier_transactions" does not exist (SQLSTATE 42P01)`).
+  2. `supplier_repo.go` içinde PostgreSQL `COUNT(...)` (bigint/int64) çıktılarının doğrudan Go `int` değişkenlerine ve pointer'larına (`&summary.TotalTransactionRows`, `&summary.ActiveSupplierCount`, `&s.TransactionCount`, `&totalCount`) scan edilmeye çalışılması sebebiyle `pgx/v5` sürücüsünün tip uyuşmazlığı hatası üretmesi.
+  3. `GetAllTransactions` ve `GetTransactionByID` sorgularında `public.periods` ve `public.suppliers` tablolarının inner JOIN yapılması ve olası NULL/eksik ilişkilerde sorgunun patlaması.
+- **Uygulanan Düzeltme (Fix):**
+  1. `15_create_suppliers.sql` ve `16_add_reversed_by_to_supplier_transactions.sql` migrationları canlı Supabase veritabanına uygulandı (0 veri kaybı, 174 kasa hareketi ve dönemler %100 korundu).
+  2. `supplier_repo.go` içerisindeki tüm `COUNT(...)` ve özet sorguları `int64` ara değişkenine scan edilip güvenli biçimde `int`'e dönüştürüldü.
+  3. `GetAllTransactions` ve `GetTransactionByID` sorgularına `LEFT JOIN` ve `COALESCE` korumaları eklendi.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır. Kasa hareketleri (`periods` ve `transactions`) tamamen izole olup etkilenmedi.
+- **Doğrulama & Test Sonucu (Verification):** Canlı Supabase üzerinde `test_suppliers_live` çalıştırıldı; `GetSummary`, `GetSuppliersWithBalances`, `GetAllTransactions` fonksiyonlarının tamamının `200 OK` (count=0, total=0) döndüğü başarıyla teyit edildi.
+- **Durum:** `RESOLVED`
+
+---
+
 ### [BUG-260925-01] Otomatik SQL Yedekleme Motorunda UUID, Decimal ve DDL Schema Bütünlüğü Düzeltmesi
 
 - **Tarih / Sprint:** 2026-09-25 / Sprint 14 & Yedekleme Motoru
