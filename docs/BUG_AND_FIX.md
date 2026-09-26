@@ -542,5 +542,54 @@
   - `go test -v ./...` (Tüm paketler %100 PASS).
 - **Durum:** `RESOLVED`
 
+---
+
+### [BUG-260927-35] Canlı Üretim Ortamı (Vercel + Render + Supabase) "Yetkisiz Erişim" (UNAUTHORIZED 401/403) ve CORS/Preflight Derinlemesine Analizi ve Kalıcı Çözümü
+
+- **Tarih / Sprint:** 2026-09-27 / Sprint 13 - Canlı Üretim & Deploy Stabilizasyonu
+- **Etkilenen Katmanlar / Dosyalar:**
+  - `backend/internal/handler/router.go`
+  - `backend/internal/handler/middleware/auth_middleware.go`
+  - `backend/internal/handler/middleware/jwks.go`
+  - `backend/cmd/test_render_live/main.go`
+- **Belirti (Symptom):**
+  1. Vercel üzerinde çalışan frontend'den (`https://muhasebe-ve-finans-otomasyonu-lvwa32w3w.vercel.app`) Render backend API'sine (`https://muhasebe-ve-finans-otomasyonu-2.onrender.com/api/v1`) yapılan isteklerde `{"success":false,"error":{"code":"UNAUTHORIZED","message":"yetkisiz erişim"}}` ve `403/401` hata yanıtı dönmesi.
+  2. Tüm çevre değişkenleri (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`) doğru ayarlandığı halde verilerin ekranda görünmemesi.
+
+- **Kök Nedenlerin Ayrıntılı Analizi (Root Cause Breakdown):**
+  1. **CORS Preflight (`OPTIONS`) İsteklerinin Auth Middleware Tarafından Engellenmesi (En Kritik Nokta):**
+     - Tarayıcılar (Chrome/Edge/Firefox), cross-origin (farklı domain) isteklerinde gerçek `GET/POST` çağrısından önce sunucunun yetkilerini denetlemek için bir `OPTIONS` (Preflight) isteği gönderir.
+     - Standart gereği bu `OPTIONS` isteği `Authorization: Bearer` başlığı taşımaz.
+     - Eski `AuthMiddleware` kodunda istek metodu kontrolü (`MethodOptions`) yapılmadığı için, `OPTIONS` isteği `authHeader == ""` koşuluna takılarak anında `domain.ErrUnauthorized` ile reddediliyordu. Tarayıcı preflight'ta hata alınca asıl veri isteğini sunucuya hiç göndermiyordu.
+  2. **Dinamik Vercel Domainlerinin CORS İzin Listesinde Eksik Olması:**
+     - `router.go` içindeki `allowedOrigins` listesinde yalnızca sabit alan adları ve localhost tanımlıydı; Vercel'in preview ve deployment domainleri (`*.vercel.app`) statik listede yer almıyordu.
+  3. **Halka Açık (Public) Rotaların Auth Middleware Kapsamına Düşmesi:**
+     - Şifremi unuttum akışında kullanılan `GET /api/v1/auth/security-question` ve `POST /api/v1/auth/reset-password` rotaları, henüz oturum açmamış kullanıcılar tarafından çağrılmasına rağmen korumalı `api.Group("/api/v1")` altına tanımlanmıştı.
+  4. **Supabase Modern Asimetrik Token (`ES256`) & Ortam Değişkeni Bağımlılığı:**
+     - Supabase yeni projelerde JWT'leri `ES256` (ECDSA P-256) anahtarıyla imzalar. Canlıdaki eski backend bunu sadece simetrik `HS256` ile çözmeye çalıştığı için imza doğrulaması başarısız oluyordu.
+     - Ayrıca Render ortamında `SUPABASE_JWKS_URL` veya `SUPABASE_URL` ortam değişkeni tanımlanmadığı durumlarda JWKS istemcisi boş URL ile kalıyordu.
+  5. **JWT `aud` ve `iss` Doğrulama Katılığı:**
+     - Supabase bazı token varyantlarında `aud` alanını tekil string (`"authenticated"`) yerine dizi (`["authenticated"]`) olarak döner. Tip dönüşümünde (`.(string)`) hata oluşup token geçersiz sayılıyordu.
+
+- **Daha Önce Neden Düzelmedi & Neleri Düzeltmeye Çalıştık? (Historical Failure Analysis):**
+  - İlk aşamalarda sorun salt `.env` içerisindeki API URL veya anon key formatı sanılarak frontend konfigürasyonları düzenlendi.
+  - Ancak tarayıcı ağ katmanında `OPTIONS` preflight isteğinin `AuthMiddleware` tarafından ezilmesi ve backend'in Render tarafında derlenip güncellenmemiş olması nedeniyle canlıda hata devam etti.
+
+- **Uygulanan Kalıcı Çözümler (Permanent Fixes):**
+  1. **Preflight `OPTIONS` Bypass:** `auth_middleware.go` dosyasının ilk satırına `if c.Method() == fiber.MethodOptions { return c.Next() }` kuralı eklendi. Tarayıcı ön kontrol istekleri artık sıfır engelle geçmektedir.
+  2. **Dinamik CORS Origin Eşleme:** `router.go` içinde `cors.Config.AllowOriginsFunc` entegre edilerek `*.vercel.app`, `localhost`, `onrender.com` ve `oncuotogazmuhasebe.com.tr` alan adları otomatik olarak yetkilendirildi.
+  3. **Public / Protected Rota Ayrımı:** `router.go` içinde şifre sıfırlama ve güvenlik sorusu sorgulama rotaları `publicAuth` grubuna ayrılarak auth zorunluluğundan muaf tutuldu.
+  4. **Evrensel JWKS Fallback & ES256/HS256 Desteği:** `jwks.go` içine projenin aktif Supabase endpoint'i (`https://lvsngrrdzjhbawhcuzqz.supabase.co`) kod seviyesinde varsayılan fallback olarak gömüldü; Render üzerinde ek ortam değişkeni olmasa dahi açık anahtarlar Supabase'den başarıyla çekilir.
+  5. **Esnek Claim Tipi Doğrulaması:** `aud` claim'i hem `string`, hem `[]interface{}`, hem de `[]string` tiplerini destekleyecek şekilde güncellendi; `iss` kontrolü güvenli hale getirildi.
+
+- **Doğrulama ve Test Sonuçları (Verification):**
+  - **Supabase Canlı Token Entegrasyon Testi (`cmd/test_render_live`):** Canlı Supabase üzerindeki `admin@oncuotogaz.com` kullanıcısıyla gerçek `ES256` token'ı alınıp yerel ve uzak backend'e gönderildi: **`200 OK` alındı.**
+  - **Birim ve Entegrasyon Testleri:** `go test -v ./...` çalıştırıldı, tüm auth, middleware ve router testleri %100 `PASS` oldu.
+  - **Frontend Prod Derlemesi:** `npm run build` hatasız tamamlandı.
+  - **Git Dağıtımı:** Tüm düzeltmeler `https://github.com/yigitYur650/Muhasebe-Ve-Finans-Otomasyonu` reposunun `main` dalına pushlandı (`e1c723d`).
+
+- **Durum:** `RESOLVED` (Kalıcı Çözüldü)
+
+
 
 
