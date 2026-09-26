@@ -48,7 +48,7 @@ func SetupRouter(
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// Secure CORS configuration with restricted allowed origins
+	// Secure CORS configuration with dynamic origin matching for Vercel, Render, and custom domains
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	defaultOrigins := "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,https://muhasebe-ve-finans-otomasyonu-2.onrender.com,https://www.oncuotogazmuhasebe.com.tr,https://oncuotogazmuhasebe.com.tr"
 	if allowedOrigins == "" {
@@ -58,6 +58,19 @@ func SetupRouter(
 	}
 
 	app.Use(cors.New(cors.Config{
+		AllowOriginsFunc: func(origin string) bool {
+			if origin == "" {
+				return true
+			}
+			if strings.HasSuffix(origin, ".vercel.app") ||
+				strings.Contains(origin, "localhost") ||
+				strings.Contains(origin, "127.0.0.1") ||
+				strings.Contains(origin, "onrender.com") ||
+				strings.Contains(origin, "oncuotogazmuhasebe.com.tr") {
+				return true
+			}
+			return false
+		},
 		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Idempotency-Key, X-Tenant-ID, X-User-ID, X-User-Role",
 		AllowMethods:     "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
@@ -120,11 +133,18 @@ func SetupRouter(
 	authSvc := service.NewAuthService(secRepo)
 	authH := NewAuthHandler(authSvc)
 
-	api := app.Group("/api/v1")
+	// Public Auth Routes (Accessible without JWT for password recovery / security questions)
+	publicAuth := app.Group("/api/v1/auth")
+	publicAuth.Get("/security-question", authH.GetSecurityQuestion)
+	publicAuth.Post("/reset-password", authH.ResetPassword)
 
-	// Supabase JWT authentication & tenant membership verification middleware
+	// Protected API routes (Guarded by Supabase JWT authentication & tenant membership verification)
+	api := app.Group("/api/v1")
 	jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
 	api.Use(middleware.AuthMiddleware(jwtSecret, tenantRepo))
+
+	// Protected Auth Routes (Setting security questions requires authenticated user)
+	api.Post("/auth/security-question", authH.SetSecurityQuestion)
 
 	// Period routes
 	periodsGroup := api.Group("/periods")
@@ -159,12 +179,6 @@ func SetupRouter(
 		supGroup.Get("/:id/transactions", supH.ListSupplierTransactions)
 		supGroup.Post("/import/excel", supH.ImportExcel)
 	}
-
-	// Auth & User Security routes
-	authGroup := api.Group("/auth")
-	authGroup.Post("/security-question", authH.SetSecurityQuestion)
-	authGroup.Get("/security-question", authH.GetSecurityQuestion)
-	authGroup.Post("/reset-password", authH.ResetPassword)
 
 	// Tenant Member routes
 	if tenantSvc != nil {

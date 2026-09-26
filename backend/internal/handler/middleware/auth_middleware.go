@@ -28,6 +28,11 @@ const (
 // and DB tenant membership verification are strictly mandatory.
 func AuthMiddleware(jwtSecret string, tenantRepo domain.TenantRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Always allow CORS preflight (OPTIONS) requests to proceed unblocked
+		if c.Method() == fiber.MethodOptions {
+			return c.Next()
+		}
+
 		// Cleanse context locals to prevent header spoofing / pollution
 		c.Locals(LocalUserID, nil)
 		c.Locals(LocalTenantID, nil)
