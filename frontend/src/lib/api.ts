@@ -85,8 +85,8 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
   try {
     const response = await fetch(getApiUrl(endpoint), config);
 
-    // Handle 401 Unauthorized with automatic session refresh & retry
-    if (response.status === 401 && !isRetry && typeof window !== 'undefined' && supabaseClient) {
+    // Handle 401 / 403 Unauthorized with automatic session refresh & retry
+    if ((response.status === 401 || response.status === 403) && !isRetry && typeof window !== 'undefined' && supabaseClient) {
       try {
         const { data: refreshData, error: refreshErr } = await supabaseClient.auth.refreshSession();
         if (!refreshErr && refreshData?.session?.access_token) {
@@ -104,8 +104,8 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
 
     const data: ApiEnvelope<T> = await response.json();
 
-    // If still 401 and in browser, sign out stale local session to avoid infinite loop
-    if (response.status === 401 && typeof window !== 'undefined' && supabaseClient && !window.location.pathname.includes('/login')) {
+    // If still 401/403 and in browser, sign out stale local session if expired
+    if ((response.status === 401 || response.status === 403) && typeof window !== 'undefined' && supabaseClient && !window.location.pathname.includes('/login')) {
       try {
         await supabaseClient.auth.signOut();
       } catch {

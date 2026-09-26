@@ -28,7 +28,7 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 			errCode = "NOT_FOUND"
 			errMsg = err.Error()
 
-		case errors.Is(err, domain.ErrUnauthorized):
+		case errors.Is(err, domain.ErrUnauthorized), errors.Is(err, domain.ErrForbidden):
 			code = fiber.StatusForbidden
 			errCode = "UNAUTHORIZED"
 			errMsg = err.Error()

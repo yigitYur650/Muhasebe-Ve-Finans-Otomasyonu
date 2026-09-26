@@ -13,6 +13,7 @@ var (
 	ErrPeriodNotFound             = errors.New("dönem bulunamadı")
 	ErrTenantNotFound             = errors.New("işletme (tenant) bulunamadı")
 	ErrUnauthorized               = errors.New("yetkisiz erişim")
+	ErrForbidden                  = errors.New("bu işlem için yetkiniz bulunmamaktadır")
 	ErrDuplicateIdempotencyKey    = errors.New("bu Idempotency-Key daha önce kullanılmış")
 	ErrPeriodAlreadyExists        = errors.New("bu dönem etiketi zaten mevcut")
 	ErrTransactionAlreadyReversed = errors.New("bu işlem zaten ters kayıt ile iptal edilmiş")
