@@ -1,3 +1,52 @@
+# 🚀 Release Notes — Sürüm v1.4.0
+
+> **Sürüm Tarihi:** 2026-09-27  
+> **Platform:** Öncü Otogaz — Kasa, Cari ve Defter-i Kebir Yönetim Platformu  
+> **Mimari:** Go Fiber v2 Backend + Next.js 15 App Router Frontend + PostgreSQL / Supabase RLS  
+
+---
+
+### ✨ Sürüm v1.4.0 — Canlı Üretim (Vercel + Render) Stabilizasyonu & Tedarikçi Çift Defter Güçlendirmesi
+
+#### 1. 🌐 CORS & Dinamik Preflight (OPTIONS) Geçişi
+- Tarayıcı cross-origin `OPTIONS` (preflight) isteklerinin `AuthMiddleware` tarafından engellenmesi kalıcı olarak çözüldü (`if c.Method() == fiber.MethodOptions { return c.Next() }`).
+- `router.go` içinde dinamik CORS eşleşmesi (`AllowOriginsFunc`) ile `*.vercel.app`, `onrender.com`, `oncuotogazmuhasebe.com.tr` ve `localhost` domainleri tam yetkilendirildi.
+
+#### 2. 🔐 Supabase Asimetrik JWT (ES256 ECDSA P-256) JWKS Entegrasyonu
+- Modern Supabase projelerinin P-256 asimetrik anahtarlarını önbelleğe alan `JWKSCache` mekanizması ve esnek `aud` (`string` / `[]string`) doğrulaması devreye alındı.
+- Şifre sıfırlama ve güvenlik sorusu rotaları halka açık `publicAuth` grubuna ayrılarak sıfır engelle çalışma sağlandı.
+
+#### 3. 📦 Tedarikçiler (Suppliers) int64 Scan & Migration Stabilizasyonu
+- PostgreSQL `COUNT(...)` (bigint/int64) alanlarının Go `int` değişkenlerine dönüşümündeki tip uyuşmazlığı giderildi.
+- Canlı Supabase üzerinde `15_create_suppliers.sql` ve `16_add_reversed_by_to_supplier_transactions.sql` uygulanarak sıfır veri kaybı ile tam kararlılık sağlandı.
+
+---
+
+# 🚀 Release Notes — Sürüm v1.3.0
+
+> **Sürüm Tarihi:** 2026-09-25  
+> **Platform:** Öncü Otogaz — Kasa, Cari ve Defter-i Kebir Yönetim Platformu  
+> **Mimari:** Go Fiber v2 Backend + Next.js 15 App Router Frontend + PostgreSQL / Supabase RLS  
+
+---
+
+### ✨ Sürüm v1.3.0 — Telegram Anlık Alarm Motoru & 3-2-1 Google Drive Otomatik Yedekleme
+
+#### 1. 🚨 Telegram Bot Anlık Alarm Sistemi (`pkg/telegram`)
+- Sunucu çökmelerini (Panic) ve kritik `500 Internal Server Error` hatalarını anında yöneticinin Telegram hesabına formatlı HTML mesajı ile ileten asenkron non-blocking goroutine kuyruğu entegre edildi.
+- Spam önleyici **Alert Throttling** mekanizması ile aynı hata dakikada en fazla 1 kez iletilir.
+
+#### 2. ☁️ 3-2-1 Google Drive Otomatik Yedekleme Motoru (`pkg/backup`, `pkg/gdrive`)
+- Veritabanından tüm aktif/kilitli dönemleri, kasa ve tedarikçi hareketlerini atomik snapshot olarak çıkaran ve `.sql.gz` olarak sıkıştıran motor yazıldı.
+- Google Drive v3 REST API ile akış yüklemesi (streaming upload), 30 günlük otomatik retention (eski yedek temizliği) ve gece 03:00 cron zamanlayıcısı devreye alındı.
+- Yedekleme sonuç raporları otomatik olarak Telegram sohbetine döküm dosyasıyla birlikte gönderilir.
+
+#### 3. 🔄 Otomatik Dönem Kilitleme & JWT 401 Seamless Auto-Refresh
+- `open_next_period()` içine yeni ay açılırken önceki açık dönemi atomik olarak kilitleme kuralı eklendi.
+- Frontend `apiFetch` istemcisine 401/403 durumunda `refreshSession()` ile otomatik sessiz token yenileme ve isteği tekrarlama (seamless retry) yeteneği kazandırıldı.
+
+---
+
 # 🚀 Release Notes — Sürüm v1.2.0
 
 > **Sürüm Tarihi:** 2026-09-24  

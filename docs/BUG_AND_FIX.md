@@ -22,6 +22,23 @@
 
 ---
 
+### [BUG-260927-37] Gece 03:00 Otomatik Telegram SQL Yedeği Render Spin-Down (Uyku Modu) ve UTC Saat Dilimi Düzeltmesi
+
+- **Tarih / Sprint:** 2026-09-27 / Sprint 14 & Otomatik Yedekleme Kararlılığı
+- **Etkilenen Katman / Dosya:** `backend/pkg/scheduler/scheduler.go`, `docs/TELEGRAM_AND_DRIVE_BACKUP_GUIDE.md`
+- **Belirti (Symptom):** Gece 03:00'te otomatik olarak Telegram'a gönderilmesi planlanan günlük `.sql.gz` veritabanı yedeğinin gelmemesi.
+- **Kök Neden (Root Cause):**
+  1. **Render Free Tier Spin-Down (Uyku Modu):** Render ücretsiz web servisinin ~15 dakika boyunca HTTP trafiği almadığında konteyneri askıya alması (suspend / idle). Konteyner uyuduğunda Go'nun bellek içi `time.Sleep` zamanlayıcısı da donduğu için gece 03:00'te kendiliğinden uyanamaması (Render loglarında 23:09 ile 08:56 arasında 10 saatlik aktivite boşluğu tespit edildi).
+  2. **UTC vs TSİ Saat Farkı:** Render bulut sunucularının varsayılan olarak UTC saat diliminde çalışması sebebiyle `3, 0, 0` hedefinin Türkiye saatiyle sabah `06:00 TSİ`'ye denk gelmesi.
+- **Uygulanan Düzeltme (Fix):**
+  1. `backend/pkg/scheduler/scheduler.go`: `StartDailyCron` fonksiyonuna `Europe/Istanbul` (`loc = time.FixedZone("TRT", 3*60*60)`) açık saat dilimi entegre edildi. Sunucu nerede çalışırsa çalışsın daima tam **03:00 TSİ (Türkiye Saati)** anında tetiklenmesi güvenceye alındı.
+  2. **UptimeRobot / Heartbeat Canlılık Entegrasyonu:** Render'ın uykuya dalmasını engellemek amacıyla UptimeRobot üzerinden `https://muhasebe-ve-finans-otomasyonu-2.onrender.com/health` uç noktasına her 5 dakikada bir otomatik canlılık sinyali (ping) bağlandı. Sunucu 7/24 aktif tutularak zamanlayıcının gece uykuda kalması kökten çözüldü.
+- **Yan Etki & Risk Analizi (Risk):** Sıfır risk. Sağlık uç noktası (`/health`) bellek ve CPU yükü üretmeden 200 OK döner.
+- **Doğrulama & Test Sonucu (Verification):** UptimeRobot monitor'ü `200 OK` ile canlıya alındı. `go test ./...` %100 PASS verdi.
+- **Durum:** `RESOLVED`
+
+---
+
 ### [BUG-260927-36] Tedarikçi (Suppliers) Uç Noktalarında HTTP 500 Hatası, Eksik Supabase Tabloları ve int64 Scan Uyuşmazlığı Düzeltmesi
 
 - **Tarih / Sprint:** 2026-09-27 / Canlı Ortam Kararlılığı & Suppliers Modülü

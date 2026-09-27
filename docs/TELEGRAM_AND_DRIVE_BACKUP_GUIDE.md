@@ -84,19 +84,19 @@ flowchart TD
 ## 3. Geliştiricinin (Ajanın) Kodlayacağı Katmanlar
 
 ### Faz 1: Telegram Alarm Motoru (Sprint 13)
-- [ ] `backend/pkg/telegram/client.go`: Standart Go HTTP kütüphanesiyle sıfır harici bağımlılıklı, yüksek performanslı Telegram API istemcisi.
-- [ ] `backend/pkg/telegram/notifier.go`: Formatlı HTML/Markdown mesaj şablonları, non-blocking `goroutine` kuyruğu ve spam önleyici **Rate Limiter / Alert Throttling** (aynı hatayı dakikada 1 kez gönderir).
-- [ ] `backend/internal/handler/middleware/recover_middleware.go`: Sunucu çökmesini önleyen ve yakalanan Panic'leri anında Telegram'a bildiren mekanizma.
-- [ ] Fiber merkezi `ErrorHandler` entegrasyonu: Sadece 500+ Internal Server Error ve DB kopmalarında otomatik alarm tetikleme.
-- [ ] `backend/cmd/test_alert/main.go`: Terminalden tek komutla test alarmı gönderme aracı.
+- [x] `backend/pkg/telegram/client.go`: Standart Go HTTP kütüphanesiyle sıfır harici bağımlılıklı, yüksek performanslı Telegram API istemcisi. (TAMAMLANDI)
+- [x] `backend/pkg/telegram/global.go`: Formatlı HTML/Markdown mesaj şablonları, non-blocking `goroutine` kuyruğu ve spam önleyici **Rate Limiter / Alert Throttling** (aynı hatayı dakikada 1 kez gönderir). (TAMAMLANDI)
+- [x] `backend/internal/handler/router.go` (recover): Sunucu çökmesini önleyen ve yakalanan Panic'leri anında Telegram'a bildiren mekanizma. (TAMAMLANDI)
+- [x] Fiber merkezi `CustomErrorHandler` entegrasyonu: Sadece 500+ Internal Server Error ve DB kopmalarında otomatik alarm tetikleme. (TAMAMLANDI)
+- [x] `backend/cmd/test_alert/main.go`: Terminalden tek komutla test alarmı gönderme aracı. (TAMAMLANDI)
 
 ### Faz 2: Google Drive Günlük Yedekleme Motoru (Sprint 14)
-- [ ] `backend/pkg/backup/exporter.go`: Veritabanından tüm aktif/kilitli dönemler, kasa işlemleri, tedarikçiler ve cari hareketleri atomik snapshot halinde çıkaran ve `.sql.gz` sıkıştıran motor.
-- [ ] `backend/pkg/gdrive/uploader.go`: `google.golang.org/api/drive/v3` SDK'sı ile Google Drive'a güvenli akış (streaming upload) yükleyicisi.
-- [ ] `backend/pkg/gdrive/retention.go`: Belirlenen gün sayısından (30 gün) eski yedekleri tespit edip Drive'dan silen temizlik politikası.
-- [ ] `backend/pkg/scheduler/cron.go`: Her gece 03:00'te otomatik çalışacak zamanlayıcı.
-- [ ] Yedekleme sonucunu (başarı/hata, dosya boyutu, süre) otomatik Telegram'a ileten raporlama entegrasyonu.
-- [ ] `backend/cmd/backup/main.go`: İstenildiği an terminalden manuel yedekleme başlatan CLI aracı.
+- [x] `backend/pkg/backup/exporter.go`: Veritabanından tüm aktif/kilitli dönemler, kasa işlemleri, tedarikçiler ve cari hareketleri atomik snapshot halinde çıkaran ve `.sql.gz` sıkıştıran motor. (TAMAMLANDI)
+- [x] `backend/pkg/gdrive/uploader.go`: Native Google Drive v3 REST API ile Google Drive'a güvenli akış (streaming upload) yükleyicisi. (TAMAMLANDI)
+- [x] `backend/pkg/gdrive/uploader.go` (retention): Belirlenen gün sayısından (30 gün) eski yedekleri tespit edip Drive'dan silen temizlik politikası. (TAMAMLANDI)
+- [x] `backend/pkg/scheduler/scheduler.go`: Her gece 03:00'te otomatik çalışacak zamanlayıcı. (TAMAMLANDI)
+- [x] `backend/pkg/telegram/document.go`: Yedekleme sonucunu ve `.sql.gz` dosyasını otomatik Telegram'a ileten raporlama entegrasyonu. (TAMAMLANDI)
+- [x] `backend/cmd/backup/main.go`: İstenildiği an terminalden manuel yedekleme başlatan CLI aracı. (TAMAMLANDI)
 
 ---
 

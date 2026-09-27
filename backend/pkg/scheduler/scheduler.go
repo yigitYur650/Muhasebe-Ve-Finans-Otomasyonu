@@ -112,19 +112,24 @@ func (o *BackupOrchestrator) RunBackup(ctx context.Context) (*backup.SnapshotSum
 	return summary, nil
 }
 
-// StartDailyCron starts a background scheduler that runs backup every day at the designated hour (default 03:00).
+// StartDailyCron starts a background scheduler that runs backup every day at 03:00 AM (Turkey Time / TSİ).
 func (o *BackupOrchestrator) StartDailyCron() {
 	go func() {
+		loc, err := time.LoadLocation("Europe/Istanbul")
+		if err != nil {
+			loc = time.FixedZone("TRT", 3*60*60) // UTC+3 fallback
+		}
+
 		for {
-			now := time.Now()
-			// Next 03:00 AM target
-			nextRun := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, now.Location())
+			now := time.Now().In(loc)
+			// Next 03:00 AM target in Turkey Time (TSİ)
+			nextRun := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, loc)
 			if now.After(nextRun) {
 				nextRun = nextRun.Add(24 * time.Hour)
 			}
 
 			durationUntilNext := time.Until(nextRun)
-			log.Printf("⏰ [SCHEDULER] Daily backup scheduled for: %s (in %v)",
+			log.Printf("⏰ [SCHEDULER] Daily backup scheduled for: %s TSİ (in %v)",
 				nextRun.Format("2006-01-02 15:04:05"), durationUntilNext.Round(time.Minute))
 
 			time.Sleep(durationUntilNext)
