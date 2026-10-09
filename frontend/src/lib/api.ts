@@ -23,6 +23,9 @@ export function getApiUrl(endpoint: string): string {
 export interface ApiEnvelope<T> {
   success: boolean;
   data?: T;
+  total?: number;
+  page?: number;
+  limit?: number;
   error?: {
     code: string;
     message: string;

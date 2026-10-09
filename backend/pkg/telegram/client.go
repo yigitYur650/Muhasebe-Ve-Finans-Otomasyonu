@@ -157,7 +157,7 @@ func (c *Client) SendBackupReport(success bool, filename string, sizeBytes int64
 					"⏰ <b>Tarih:</b> <code>%s</code>\n"+
 					"📁 <b>Dosya:</b> <code>%s</code>\n"+
 					"📦 <b>Boyut:</b> <code>%.2f MB</code>\n"+
-					"☁️ <b>Hedef:</b> Google Drive / Oncu_Otogaz_Backups\n"+
+					"☁️ <b>Hedef:</b> Telegram Bot / Güvenli Bulut Arşivi\n"+
 					"⏱️ <b>Süre:</b> <code>%v</code>\n",
 				now, filename, sizeMB, duration,
 			)

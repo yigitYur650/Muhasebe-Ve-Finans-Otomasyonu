@@ -11,6 +11,9 @@ import (
 type ResponseEnvelope struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`
+	Total   *int        `json:"total,omitempty"`
+	Page    *int        `json:"page,omitempty"`
+	Limit   *int        `json:"limit,omitempty"`
 	Error   *ErrorData  `json:"error,omitempty"`
 }
 

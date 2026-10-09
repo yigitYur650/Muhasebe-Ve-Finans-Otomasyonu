@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // SendDocument sends a file (e.g. backup .sql.gz) directly to the configured Telegram chat.
@@ -61,7 +62,10 @@ func (c *Client) SendDocument(filePath, caption string) error {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := c.httpClient.Do(req)
+	uploadClient := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	resp, err := uploadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute sendDocument request: %w", err)
 	}

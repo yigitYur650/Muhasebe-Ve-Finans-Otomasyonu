@@ -106,6 +106,11 @@ export default function HomePage() {
     selectedSupplierId,
     setSelectedSupplierId,
     transactions: supplierTransactions,
+    totalCount: supplierTotalCount,
+    page: supplierPage,
+    setPage: setSupplierPage,
+    pageSize: supplierPageSize,
+    setPageSize: setSupplierPageSize,
     loadingSuppliers,
     loadingTransactions: loadingSupplierTxs,
     searchQuery: supplierSearch,
@@ -389,6 +394,11 @@ export default function HomePage() {
               directionFilter={supplierDirectionFilter}
               onDirectionFilterChange={setSupplierDirectionFilter}
               isPeriodLocked={periodStatus === "locked"}
+              totalCount={supplierTotalCount}
+              page={supplierPage}
+              pageSize={supplierPageSize}
+              onPageChange={setSupplierPage}
+              onPageSizeChange={setSupplierPageSize}
               onReverse={(tx) => {
                 setTargetSupplierTxForReverse(tx);
                 setReverseSupplierModalOpen(true);

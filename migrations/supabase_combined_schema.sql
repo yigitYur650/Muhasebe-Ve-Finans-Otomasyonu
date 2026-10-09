@@ -506,4 +506,93 @@ END $$;
 GRANT ALL ON public.suppliers TO authenticated;
 GRANT ALL ON public.supplier_transactions TO authenticated;
 
+-- 16. TEDARİKÇİ & CARİ HAREKET BAKİYE YENİDEN HESAPLAMA (RECALCULATE) FONKSİYONLARI
+CREATE OR REPLACE FUNCTION public.recalculate_supplier_balances(p_tenant_id UUID DEFAULT NULL)
+RETURNS TABLE (
+    tenant_id UUID,
+    supplier_id UUID,
+    supplier_name VARCHAR(150),
+    is_active BOOLEAN,
+    total_purchases NUMERIC(15,2),
+    total_payments NUMERIC(15,2),
+    net_balance NUMERIC(15,2),
+    active_tx_count BIGINT,
+    reversed_tx_count BIGINT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        s.tenant_id,
+        s.id AS supplier_id,
+        s.name AS supplier_name,
+        s.is_active,
+        COALESCE(SUM(
+            CASE 
+                WHEN st.direction = 'purchase' 
+                     AND st.reversed_by IS NULL 
+                     AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id)
+                THEN st.amount 
+                ELSE 0 
+            END
+        ), 0)::NUMERIC(15,2) AS total_purchases,
+        COALESCE(SUM(
+            CASE 
+                WHEN st.direction = 'payment' 
+                     AND st.reversed_by IS NULL 
+                     AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id)
+                THEN st.amount 
+                ELSE 0 
+            END
+        ), 0)::NUMERIC(15,2) AS total_payments,
+        (
+            COALESCE(SUM(
+                CASE 
+                    WHEN st.direction = 'purchase' 
+                         AND st.reversed_by IS NULL 
+                         AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id)
+                    THEN st.amount 
+                    ELSE 0 
+                END
+            ), 0)
+            -
+            COALESCE(SUM(
+                CASE 
+                    WHEN st.direction = 'payment' 
+                         AND st.reversed_by IS NULL 
+                         AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id)
+                    THEN st.amount 
+                    ELSE 0 
+                END
+            ), 0)
+        )::NUMERIC(15,2) AS net_balance,
+        COUNT(
+            CASE 
+                WHEN st.id IS NOT NULL 
+                     AND st.reversed_by IS NULL 
+                     AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id)
+                THEN st.id 
+            END
+        ) AS active_tx_count,
+        COUNT(
+            CASE 
+                WHEN st.id IS NOT NULL 
+                     AND (st.reversed_by IS NOT NULL OR EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id))
+                THEN st.id 
+            END
+        ) AS reversed_tx_count
+    FROM public.suppliers s
+    LEFT JOIN public.supplier_transactions st ON s.id = st.supplier_id AND s.tenant_id = st.tenant_id
+    WHERE (p_tenant_id IS NULL OR s.tenant_id = p_tenant_id)
+    GROUP BY s.tenant_id, s.id, s.name, s.is_active
+    ORDER BY s.name ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.recalculate_supplier_balances(UUID) TO authenticated;
+
 COMMIT;
+

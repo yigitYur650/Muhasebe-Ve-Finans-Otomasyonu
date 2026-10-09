@@ -31,10 +31,39 @@ func NewMockSupplierRepo() *MockSupplierRepo {
 }
 
 func (m *MockSupplierRepo) GetSuppliersWithBalances(ctx context.Context, tenantID uuid.UUID, periodID *uuid.UUID) ([]domain.Supplier, error) {
+	reversedMap := make(map[uuid.UUID]bool)
+	for _, tx := range m.transactions {
+		if tx.ReversedBy != nil {
+			reversedMap[*tx.ReversedBy] = true
+		}
+	}
+
 	list := make([]domain.Supplier, 0)
 	for _, s := range m.suppliers {
 		if s.TenantID == tenantID {
-			list = append(list, *s)
+			supplierCopy := *s
+			supplierCopy.TotalPurchase = decimal.Zero
+			supplierCopy.TotalPayment = decimal.Zero
+			supplierCopy.TransactionCount = 0
+
+			for _, tx := range m.transactions {
+				if tx.TenantID == tenantID && tx.SupplierID == s.ID {
+					if tx.ReversedBy != nil || reversedMap[tx.ID] {
+						continue
+					}
+					if periodID != nil && *periodID != uuid.Nil && tx.PeriodID != *periodID {
+						continue
+					}
+					supplierCopy.TransactionCount++
+					if tx.Direction == domain.SupplierDirectionPurchase {
+						supplierCopy.TotalPurchase = supplierCopy.TotalPurchase.Add(tx.Amount)
+					} else if tx.Direction == domain.SupplierDirectionPayment {
+						supplierCopy.TotalPayment = supplierCopy.TotalPayment.Add(tx.Amount)
+					}
+				}
+			}
+			supplierCopy.Balance = supplierCopy.TotalPurchase.Sub(supplierCopy.TotalPayment)
+			list = append(list, supplierCopy)
 		}
 	}
 	return list, nil
@@ -45,7 +74,32 @@ func (m *MockSupplierRepo) GetSupplierByID(ctx context.Context, tenantID, suppli
 	if !ok || s.TenantID != tenantID {
 		return nil, domain.ErrSupplierNotFound
 	}
-	return s, nil
+	reversedMap := make(map[uuid.UUID]bool)
+	for _, tx := range m.transactions {
+		if tx.ReversedBy != nil {
+			reversedMap[*tx.ReversedBy] = true
+		}
+	}
+	supplierCopy := *s
+	supplierCopy.TotalPurchase = decimal.Zero
+	supplierCopy.TotalPayment = decimal.Zero
+	supplierCopy.TransactionCount = 0
+
+	for _, tx := range m.transactions {
+		if tx.TenantID == tenantID && tx.SupplierID == s.ID {
+			if tx.ReversedBy != nil || reversedMap[tx.ID] {
+				continue
+			}
+			supplierCopy.TransactionCount++
+			if tx.Direction == domain.SupplierDirectionPurchase {
+				supplierCopy.TotalPurchase = supplierCopy.TotalPurchase.Add(tx.Amount)
+			} else if tx.Direction == domain.SupplierDirectionPayment {
+				supplierCopy.TotalPayment = supplierCopy.TotalPayment.Add(tx.Amount)
+			}
+		}
+	}
+	supplierCopy.Balance = supplierCopy.TotalPurchase.Sub(supplierCopy.TotalPayment)
+	return &supplierCopy, nil
 }
 
 func (m *MockSupplierRepo) FindOrCreateSupplier(ctx context.Context, tenantID uuid.UUID, name string) (*domain.Supplier, error) {
@@ -74,6 +128,9 @@ func (m *MockSupplierRepo) CreateSupplier(ctx context.Context, s *domain.Supplie
 }
 
 func (m *MockSupplierRepo) CreateTransaction(ctx context.Context, tx *domain.SupplierTransaction) error {
+	if tx.ID == uuid.Nil {
+		tx.ID = uuid.New()
+	}
 	m.transactions = append(m.transactions, *tx)
 	return nil
 }
@@ -108,9 +165,10 @@ func (m *MockSupplierRepo) GetTransactionByID(ctx context.Context, tenantID, txI
 
 func (m *MockSupplierRepo) ReverseTransaction(ctx context.Context, tenantID, origID uuid.UUID, revTx *domain.SupplierTransaction) error {
 	found := false
-	for _, tx := range m.transactions {
+	for i, tx := range m.transactions {
 		if tx.TenantID == tenantID && tx.ID == origID {
 			found = true
+			m.transactions[i].ReversedBy = &revTx.ID
 			break
 		}
 	}
@@ -136,13 +194,26 @@ func (m *MockSupplierRepo) GetSummary(ctx context.Context, tenantID uuid.UUID, p
 		NetBalance:          decimal.Zero,
 		ActiveSupplierCount: len(m.suppliers),
 	}
+	reversedMap := make(map[uuid.UUID]bool)
+	for _, tx := range m.transactions {
+		if tx.ReversedBy != nil {
+			reversedMap[*tx.ReversedBy] = true
+		}
+	}
+
 	for _, tx := range m.transactions {
 		if tx.TenantID != tenantID {
 			continue
 		}
+		if tx.ReversedBy != nil || reversedMap[tx.ID] {
+			continue
+		}
+		if periodID != nil && *periodID != uuid.Nil && tx.PeriodID != *periodID {
+			continue
+		}
 		if tx.Direction == domain.SupplierDirectionPurchase {
 			summary.TotalPurchases = summary.TotalPurchases.Add(tx.Amount)
-		} else {
+		} else if tx.Direction == domain.SupplierDirectionPayment {
 			summary.TotalPayments = summary.TotalPayments.Add(tx.Amount)
 		}
 	}
@@ -322,4 +393,82 @@ func TestSupplierService_ImportExcel_UnmatchedSheetReturnsError(t *testing.T) {
 	_, err := svc.ImportExcel(ctx, tenantID, periodID, &buf, "", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "seçili dönem (2026-11) için uygun Excel sayfası bulunamadı")
+}
+
+func TestSupplierService_ReversalDoesNotInflatePaymentSummary(t *testing.T) {
+	ctx := context.Background()
+	tenantID := uuid.New()
+	periodID := uuid.New()
+
+	mockPeriodRepo := new(MockPeriodRepo)
+	mockPeriodRepo.On("GetByID", mock.Anything, periodID).Return(&domain.Period{
+		ID:       periodID,
+		TenantID: tenantID,
+		Label:    "2026-08",
+		Status:   domain.PeriodStatusOpen,
+		OpenedAt: time.Now(),
+	}, nil)
+
+	mockSupplierRepo := NewMockSupplierRepo()
+	svc := service.NewSupplierService(mockSupplierRepo, mockPeriodRepo)
+
+	// 1. Bir tedarikçi oluştur
+	supplier, err := svc.CreateSupplier(ctx, tenantID, "ATİKER")
+	require.NoError(t, err)
+
+	// 2. 4 adet alış faturası gir (Toplam: 50.467,56 TL)
+	amounts := []string{"10000.00", "15467.56", "20000.00", "5000.00"}
+	var originalTxIDs []uuid.UUID
+
+	for _, amtStr := range amounts {
+		amt, err := decimal.NewFromString(amtStr)
+		require.NoError(t, err)
+
+		tx := &domain.SupplierTransaction{
+			ID:         uuid.New(),
+			SupplierID: supplier.ID,
+			PeriodID:   periodID,
+			Direction:  domain.SupplierDirectionPurchase,
+			Amount:     amt,
+			InvoiceNo:  "FAT-" + amtStr,
+		}
+		created, err := svc.CreateTransaction(ctx, tenantID, tx)
+		require.NoError(t, err)
+		originalTxIDs = append(originalTxIDs, created.ID)
+	}
+
+	// 3. İptal öncesi kontrol: TotalPurchase = 50467.56, TotalPayment = 0.00, Balance = 50467.56
+	expectedTotal, _ := decimal.NewFromString("50467.56")
+	summaryBefore, err := svc.GetSummary(ctx, tenantID, &periodID)
+	require.NoError(t, err)
+	assert.True(t, summaryBefore.TotalPurchases.Equal(expectedTotal), "İptal öncesi alış toplamı 50467.56 TL olmalı")
+	assert.True(t, summaryBefore.TotalPayments.IsZero(), "İptal öncesi ödeme toplamı 0 TL olmalı")
+	assert.True(t, summaryBefore.NetBalance.Equal(expectedTotal), "İptal öncesi net borç 50467.56 TL olmalı")
+
+	// 4. 4 adet faturayı ters kayıtla iptal et
+	for _, txID := range originalTxIDs {
+		revTx, err := svc.ReverseTransaction(ctx, tenantID, txID, "Fatura iptali", nil)
+		require.NoError(t, err)
+		assert.NotNil(t, revTx)
+		assert.Equal(t, domain.SupplierDirectionPayment, revTx.Direction)
+	}
+
+	// 5. İPTAL SONRASI KRİTİK KONTROL:
+	// Ödeme tutarı ASLA 50.467,56 TL'ye şişmemeli!
+	// TotalPurchases = 0.00, TotalPayments = 0.00, NetBalance = 0.00 olmalı.
+	summaryAfter, err := svc.GetSummary(ctx, tenantID, &periodID)
+	require.NoError(t, err)
+
+	assert.True(t, summaryAfter.TotalPurchases.IsZero(), "İptal edilen faturalar alış toplamından düşmeli, 0.00 TL olmalı. Aldığı: %s", summaryAfter.TotalPurchases)
+	assert.True(t, summaryAfter.TotalPayments.IsZero(), "İptal edilen alış faturası ödeme toplamını şişirmemeli (0.00 TL kalmalı). Aldığı: %s", summaryAfter.TotalPayments)
+	assert.True(t, summaryAfter.NetBalance.IsZero(), "Net bakiye 0.00 TL olmalı. Aldığı: %s", summaryAfter.NetBalance)
+
+	// 6. Tedarikçi bakiye listesinde de kontrol
+	suppliers, err := svc.ListSuppliers(ctx, tenantID, &periodID)
+	require.NoError(t, err)
+	require.Len(t, suppliers, 1)
+	assert.True(t, suppliers[0].TotalPurchase.IsZero())
+	assert.True(t, suppliers[0].TotalPayment.IsZero())
+	assert.True(t, suppliers[0].Balance.IsZero())
+	assert.Equal(t, 0, suppliers[0].TransactionCount)
 }

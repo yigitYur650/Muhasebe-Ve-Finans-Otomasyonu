@@ -13,6 +13,9 @@ export function useSuppliers(selectedPeriodId?: string) {
   const [loadingTransactions, setLoadingTransactions] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [directionFilter, setDirectionFilter] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
   const fetchSuppliers = useCallback(async (periodId?: string) => {
     setLoadingSuppliers(true);
@@ -47,7 +50,9 @@ export function useSuppliers(selectedPeriodId?: string) {
     supplierId?: string,
     periodId?: string,
     search?: string,
-    direction?: string
+    direction?: string,
+    targetPage?: number,
+    targetPageSize?: number
   ) => {
     setLoadingTransactions(true);
     try {
@@ -55,12 +60,15 @@ export function useSuppliers(selectedPeriodId?: string) {
       const activePeriod = periodId !== undefined ? periodId : selectedPeriodId;
       const activeSearch = search !== undefined ? search : searchQuery;
       const activeDirection = direction !== undefined ? direction : directionFilter;
+      const activePage = targetPage !== undefined ? targetPage : page;
+      const activePageSize = targetPageSize !== undefined ? targetPageSize : pageSize;
 
       const params = new URLSearchParams();
       if (activePeriod) params.append("period_id", activePeriod);
       if (activeSearch) params.append("search", activeSearch);
       if (activeDirection) params.append("direction", activeDirection);
-      params.append("limit", "100");
+      params.append("page", String(activePage));
+      params.append("limit", String(activePageSize));
 
       let endpoint = "/suppliers/transactions";
       if (activeSupplier && activeSupplier !== "all") {
@@ -74,6 +82,12 @@ export function useSuppliers(selectedPeriodId?: string) {
 
       const res = await apiFetch<SupplierTransaction[]>(endpoint);
       if (res.success && res.data) {
+        if (res.total !== undefined) {
+          setTotalCount(res.total);
+        } else {
+          setTotalCount(res.data.length);
+        }
+
         const isOriginalReversed = new Set<string>();
         res.data.forEach((tx) => {
           if (tx.reversed_by) {
@@ -102,7 +116,31 @@ export function useSuppliers(selectedPeriodId?: string) {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [selectedSupplierId, selectedPeriodId, searchQuery, directionFilter]);
+  }, [selectedSupplierId, selectedPeriodId, searchQuery, directionFilter, page, pageSize]);
+
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    setPage(1);
+  }, []);
+
+  const handleDirectionChange = useCallback((dir: string) => {
+    setDirectionFilter(dir);
+    setPage(1);
+  }, []);
+
+  const handleSupplierChange = useCallback((sId: string | "all") => {
+    setSelectedSupplierId(sId);
+    setPage(1);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+  }, []);
+
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  }, []);
 
   const refreshAll = useCallback(() => {
     fetchSuppliers();
@@ -146,14 +184,19 @@ export function useSuppliers(selectedPeriodId?: string) {
     suppliers,
     summary,
     selectedSupplierId,
-    setSelectedSupplierId,
+    setSelectedSupplierId: handleSupplierChange,
     transactions,
+    totalCount,
+    page,
+    setPage: handlePageChange,
+    pageSize,
+    setPageSize: handlePageSizeChange,
     loadingSuppliers,
     loadingTransactions,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: handleSearchChange,
     directionFilter,
-    setDirectionFilter,
+    setDirectionFilter: handleDirectionChange,
     fetchSuppliers,
     fetchSummary,
     fetchTransactions,

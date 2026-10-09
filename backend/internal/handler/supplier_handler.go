@@ -143,6 +143,9 @@ func (h *SupplierHandler) ListSupplierTransactions(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(ResponseEnvelope{
 		Success: true,
 		Data:    txs,
+		Total:   &total,
+		Page:    &page,
+		Limit:   &filter.Limit,
 	})
 }
 
@@ -170,6 +173,9 @@ func (h *SupplierHandler) ListAllTransactions(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(ResponseEnvelope{
 		Success: true,
 		Data:    txs,
+		Total:   &total,
+		Page:    &page,
+		Limit:   &filter.Limit,
 	})
 }
 

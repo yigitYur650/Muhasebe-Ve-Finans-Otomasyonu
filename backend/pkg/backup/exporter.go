@@ -91,10 +91,8 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT 'diger',
-    phone TEXT,
-    notes TEXT,
+    name VARCHAR(150) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant_id, name)
 );
@@ -104,10 +102,13 @@ CREATE TABLE IF NOT EXISTS public.supplier_transactions (
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     supplier_id UUID NOT NULL REFERENCES public.suppliers(id) ON DELETE CASCADE,
     period_id UUID NOT NULL REFERENCES public.periods(id),
-    direction TEXT NOT NULL CHECK (direction IN ('purchase', 'payment')),
+    invoice_no VARCHAR(100),
+    customer_name VARCHAR(150),
+    document_status VARCHAR(50),
+    tx_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    direction VARCHAR(10) NOT NULL CHECK (direction IN ('purchase', 'payment')),
     amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
     description TEXT,
-    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_by UUID,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     reversed_by UUID REFERENCES public.supplier_transactions(id)
@@ -282,10 +283,10 @@ func (e *Exporter) CreateSnapshot(ctx context.Context) (*SnapshotSummary, error)
 	totalRecords := 0
 
 	for _, tbl := range tables {
-		// Note: Use created_at / transaction_date ordering
+		// Note: Use created_at / tx_date ordering
 		query := fmt.Sprintf("SELECT * FROM public.%s ORDER BY created_at ASC", tbl)
 		if tbl == "supplier_transactions" {
-			query = fmt.Sprintf("SELECT * FROM public.%s ORDER BY transaction_date ASC, created_at ASC", tbl)
+			query = fmt.Sprintf("SELECT * FROM public.%s ORDER BY tx_date ASC, created_at ASC", tbl)
 		}
 
 		rows, err := e.pool.Query(ctx, query)

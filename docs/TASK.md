@@ -170,6 +170,27 @@
 
 
 
+## Sprint 16 — İptal/Ters Kayıt Mantığı İyileştirmesi, Sayfalama (Pagination) ve Bakiye Yeniden Hesaplama
+
+- [x] **Task 1: İptal / Ters Kayıtların Muhasebe Yönü & Tip Mimarisi Düzeltmesi (Kritik)** (PASS, 2026-10-09)
+  - [x] Alış faturası iptal edildiğinde "Ödeme (+)" olarak değil, "Alış Tutarı (-)" olarak netleşmesini sağlayan SQL ve Go aggregation kuralları güncellendi
+  - [x] `GetSuppliersWithBalances`, `GetSupplierByID` ve `GetSummary` SQL sorgularında iptal/ters kayıtlar (`reversed_by IS NULL AND NOT EXISTS (SELECT 1 ... rev.reversed_by = st.id)`) filtresiyle ödeme toplamına yanlış yazılması engellendi
+  - [x] 4 adet alış faturası (₺50.467,56) iptal edildiğinde ödeme toplamının sıfır kaldığını ve net bakiyenin kuruşu kuruşuna sıfırlandığını doğrulayan birim testi yazıldı (`TestSupplierService_ReversalDoesNotInflatePaymentSummary` PASS)
+
+- [x] **Task 2: Cari Hareketler Sayfalama (Pagination) ve Satır Sayısı Senkronizasyonu** (PASS, 2026-10-09)
+  - [x] Backend `ResponseEnvelope` içine `total`, `page`, `limit` alanları eklendi ve `ListSupplierTransactions` / `ListAllTransactions` yanıtlarında döndürüldü
+  - [x] `frontend/src/lib/api.ts` ve `useSuppliers.ts` içine `page`, `pageSize`, `totalCount`, `setPage`, `setPageSize` pagination entegrasyonu sağlandı
+  - [x] `SupplierLedgerTable.tsx` altına modern sayfalama çubuğu (Önceki/Sonraki, sayfa numarası, sayfa başı `25/50/100/200` seçici ve `"Gösterilen: X-Y / Toplam Z kayıt"`) eklendi
+
+- [x] **Task 3: Geçmişe Dönük Veri Onarımı & Bakiye Yeniden Hesaplama Scripti (Recalculate)** (PASS, 2026-10-09)
+  - [x] Geçmişte hatalı işlenen ₺50.467,56'lık ters kayıtların ve firma bakiye toplamlarının düzeltilmesi için SQL onarım migration'ı (`migrations/18_recalculate_supplier_balances.sql`) ve `supabase_combined_schema.sql` hazırlandı
+  - [x] Tüm firmaların `total_purchases`, `total_payments` ve `balance` değerlerini hareket geçmişine göre sıfırdan hesaplayan `recalculate_supplier_balances` SQL fonksiyonu ve CLI aracı (`backend/cmd/recalculate_balances/main.go`) geliştirildi
+  - [x] Kuruş doğruluğu ve dönem kilitleri ile çelişmeyen atomik veri denetim testleri yazıldı (`recalculate_balances_test.go` %100 PASS)
+
+- [x] **Task 4: Doğrulama Sonrası Test Veri Seti Temizliği (Cleanup)** (PASS, 2026-10-09)
+  - [x] Tüm test ve doğrulamalar başarıyla tamamlandı, `testveriseti/` klasörü ve geçici test SQL dosyaları yerel dizinden güvenle silindi
+
+
 ---
 
 ## Not

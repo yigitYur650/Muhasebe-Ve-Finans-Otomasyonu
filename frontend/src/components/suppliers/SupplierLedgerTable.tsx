@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Search, Filter, ShoppingBag, CreditCard, FileText, RotateCcw } from "lucide-react";
+import { Search, Filter, ShoppingBag, CreditCard, FileText, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,11 @@ interface SupplierLedgerTableProps {
   isPeriodLocked?: boolean;
   onReverse?: (tx: SupplierTransaction) => void;
   loading?: boolean;
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export function SupplierLedgerTable({
@@ -29,9 +34,14 @@ export function SupplierLedgerTable({
   isPeriodLocked = false,
   onReverse,
   loading,
+  totalCount = 0,
+  page = 1,
+  pageSize = 50,
+  onPageChange,
+  onPageSizeChange,
 }: SupplierLedgerTableProps) {
   const t = useTranslations("suppliers");
-  const [statusFilter, setStatusFilter] = React.useState<"active" | "reversed" | "all">("active");
+  const [statusFilter, setStatusFilter] = React.useState<"active" | "reversed" | "all">("all");
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
@@ -59,6 +69,10 @@ export function SupplierLedgerTable({
       return true;
     });
   }, [transactions, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil((totalCount || filteredTransactions.length) / pageSize));
+  const startRecord = Math.min((page - 1) * pageSize + 1, totalCount || filteredTransactions.length);
+  const endRecord = Math.min(page * pageSize, totalCount || filteredTransactions.length);
 
   return (
     <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mt-4">
@@ -95,16 +109,18 @@ export function SupplierLedgerTable({
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="h-9 text-xs border border-slate-300 rounded-md px-2.5 bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
+              <option value="all">Tüm Kayıtlar (Geçmiş Dahil)</option>
               <option value="active">Yalnızca Aktif Kayıtlar</option>
               <option value="reversed">İptal / Ters Kayıtlar</option>
-              <option value="all">Tüm Kayıtlar (Geçmiş Dahil)</option>
             </select>
           </div>
         </div>
 
-        <span className="text-xs text-slate-500 font-semibold self-end sm:self-center">
-          {filteredTransactions.length} {t("recordsCount")}
-        </span>
+        <div className="flex items-center gap-3 self-end sm:self-center">
+          <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+            Toplam <strong className="text-slate-900 font-extrabold">{totalCount || filteredTransactions.length}</strong> Cari Hareket
+          </span>
+        </div>
       </div>
 
       {/* Table View */}
@@ -230,6 +246,61 @@ export function SupplierLedgerTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Bar */}
+      {totalCount > 0 && onPageChange && (
+        <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-medium">
+          <div className="flex items-center gap-2">
+            <span>
+              Gösterilen: <strong>{startRecord} - {endRecord}</strong> / Toplam <strong>{totalCount}</strong> kayıt
+            </span>
+            {onPageSizeChange && (
+              <div className="flex items-center gap-1.5 ml-3">
+                <span className="text-slate-400">|</span>
+                <span>Sayfa Başı:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="h-7 text-xs border border-slate-300 rounded px-1.5 bg-white text-slate-700 font-semibold focus:outline-none"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => onPageChange(page - 1)}
+              className="h-8 px-2.5 text-xs gap-1 font-medium bg-white"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Önceki
+            </Button>
+
+            <span className="px-3 py-1 font-bold text-slate-800 bg-white border border-slate-200 rounded-md text-xs">
+              {page} / {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => onPageChange(page + 1)}
+              className="h-8 px-2.5 text-xs gap-1 font-medium bg-white"
+            >
+              Sonraki
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
