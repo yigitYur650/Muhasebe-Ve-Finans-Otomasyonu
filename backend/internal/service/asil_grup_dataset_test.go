@@ -170,7 +170,7 @@ func TestAsilGrupReversalSimulation_PureMock(t *testing.T) {
 		revTx, err := svc.ReverseTransaction(ctx, tenantID, txID, "Fatura İptali", nil)
 		require.NoError(t, err)
 		assert.NotNil(t, revTx)
-		assert.Equal(t, domain.SupplierDirectionPayment, revTx.Direction)
+		assert.Equal(t, domain.SupplierDirectionPurchaseReturn, revTx.Direction)
 	}
 
 	// 5. İPTAL SONRASI NİHAİ KONTROL:

@@ -1,4 +1,4 @@
-export type SupplierDirection = "purchase" | "payment";
+export type SupplierDirection = "purchase" | "payment" | "purchase_return" | "payment_return";
 
 export interface Supplier {
   id: string;

@@ -202,13 +202,23 @@ export function SupplierLedgerTable({
                       )}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      {isPurchase ? (
-                        <Badge variant="outline" className={`gap-1 font-semibold ${isReversal ? "border-amber-200 bg-amber-50 text-amber-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                      {tx.direction === "purchase" ? (
+                        <Badge variant="outline" className="gap-1 font-semibold border-rose-200 bg-rose-50 text-rose-700">
                           <ShoppingBag className="w-3 h-3" />
                           Alınan Mal (+)
                         </Badge>
+                      ) : tx.direction === "purchase_return" ? (
+                        <Badge variant="outline" className="gap-1 font-semibold border-amber-300 bg-amber-50 text-amber-800">
+                          <RotateCcw className="w-3 h-3" />
+                          Alış İadesi (-)
+                        </Badge>
+                      ) : tx.direction === "payment_return" ? (
+                        <Badge variant="outline" className="gap-1 font-semibold border-blue-300 bg-blue-50 text-blue-800">
+                          <RotateCcw className="w-3 h-3" />
+                          Ödeme İadesi (+)
+                        </Badge>
                       ) : (
-                        <Badge variant="outline" className={`gap-1 font-semibold ${isReversal ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                        <Badge variant="outline" className="gap-1 font-semibold border-emerald-200 bg-emerald-50 text-emerald-700">
                           <CreditCard className="w-3 h-3" />
                           Geçilen Ödeme (-)
                         </Badge>
@@ -216,7 +226,13 @@ export function SupplierLedgerTable({
                     </td>
                     <td
                       className={`py-3 px-4 text-right font-mono font-bold whitespace-nowrap text-sm ${
-                        isReversal ? "text-amber-700" : isPurchase ? "text-rose-600" : "text-emerald-600"
+                        tx.direction === "purchase_return"
+                          ? "text-amber-700"
+                          : tx.direction === "payment_return"
+                          ? "text-blue-700"
+                          : isPurchase
+                          ? "text-rose-600"
+                          : "text-emerald-600"
                       }`}
                     >
                       {formatTL(tx.amount)}

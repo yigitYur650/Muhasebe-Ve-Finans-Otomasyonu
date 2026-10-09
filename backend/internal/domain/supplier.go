@@ -9,10 +9,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Supplier directions
+// Supplier directions (Muhasebe Usulü 4 Temel İşlem Türü)
 const (
-	SupplierDirectionPurchase = "purchase" // Toptancıdan alınan mal (Borcu artırır)
-	SupplierDirectionPayment  = "payment"  // Toptancıya yapılan ödeme (Borcu azaltır)
+	SupplierDirectionPurchase       = "purchase"        // Toptancıdan alınan mal (Borcu artırır +)
+	SupplierDirectionPayment        = "payment"         // Toptancıya yapılan ödeme (Borcu azaltır -)
+	SupplierDirectionPurchaseReturn = "purchase_return" // Alış İadesi / Alış İptali (Alış tutarından düşer -)
+	SupplierDirectionPaymentReturn  = "payment_return"  // Ödeme İadesi / Ödeme İptali (Ödeme tutarından düşer -)
 )
 
 // Supplier represents a vendor/supplier entity.

@@ -31,11 +31,11 @@ func (r *PostgresSupplierRepository) GetSuppliersWithBalances(ctx context.Contex
 			s.name, 
 			s.is_active, 
 			s.created_at,
-			COALESCE(SUM(CASE WHEN st.direction = 'purchase' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS total_purchase,
-			COALESCE(SUM(CASE WHEN st.direction = 'payment' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS total_payment,
-			COALESCE(SUM(CASE WHEN st.direction = 'purchase' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0)
-			- COALESCE(SUM(CASE WHEN st.direction = 'payment' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS balance,
-			COUNT(CASE WHEN st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.id END) AS transaction_count
+			COALESCE(SUM(CASE WHEN st.direction = 'purchase' THEN st.amount WHEN st.direction = 'purchase_return' THEN -st.amount ELSE 0 END), 0) AS total_purchase,
+			COALESCE(SUM(CASE WHEN st.direction = 'payment' THEN st.amount WHEN st.direction = 'payment_return' THEN -st.amount ELSE 0 END), 0) AS total_payment,
+			COALESCE(SUM(CASE WHEN st.direction = 'purchase' THEN st.amount WHEN st.direction = 'purchase_return' THEN -st.amount ELSE 0 END), 0)
+			- COALESCE(SUM(CASE WHEN st.direction = 'payment' THEN st.amount WHEN st.direction = 'payment_return' THEN -st.amount ELSE 0 END), 0) AS balance,
+			COUNT(st.id) AS transaction_count
 		FROM public.suppliers s
 		LEFT JOIN public.supplier_transactions st ON s.id = st.supplier_id AND s.tenant_id = st.tenant_id
 	`)
@@ -81,11 +81,11 @@ func (r *PostgresSupplierRepository) GetSupplierByID(ctx context.Context, tenant
 			s.name, 
 			s.is_active, 
 			s.created_at,
-			COALESCE(SUM(CASE WHEN st.direction = 'purchase' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS total_purchase,
-			COALESCE(SUM(CASE WHEN st.direction = 'payment' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS total_payment,
-			COALESCE(SUM(CASE WHEN st.direction = 'purchase' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0)
-			- COALESCE(SUM(CASE WHEN st.direction = 'payment' AND st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.amount ELSE 0 END), 0) AS balance,
-			COUNT(CASE WHEN st.reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN st.id END) AS transaction_count
+			COALESCE(SUM(CASE WHEN st.direction = 'purchase' THEN st.amount WHEN st.direction = 'purchase_return' THEN -st.amount ELSE 0 END), 0) AS total_purchase,
+			COALESCE(SUM(CASE WHEN st.direction = 'payment' THEN st.amount WHEN st.direction = 'payment_return' THEN -st.amount ELSE 0 END), 0) AS total_payment,
+			COALESCE(SUM(CASE WHEN st.direction = 'purchase' THEN st.amount WHEN st.direction = 'purchase_return' THEN -st.amount ELSE 0 END), 0)
+			- COALESCE(SUM(CASE WHEN st.direction = 'payment' THEN st.amount WHEN st.direction = 'payment_return' THEN -st.amount ELSE 0 END), 0) AS balance,
+			COUNT(st.id) AS transaction_count
 		FROM public.suppliers s
 		LEFT JOIN public.supplier_transactions st ON s.id = st.supplier_id AND s.tenant_id = st.tenant_id
 		WHERE s.tenant_id = $1 AND s.id = $2
@@ -155,7 +155,8 @@ func (r *PostgresSupplierRepository) CreateTransaction(ctx context.Context, tx *
 	if tx.Amount.LessThanOrEqual(decimal.Zero) {
 		return domain.ErrInvalidAmount
 	}
-	if tx.Direction != domain.SupplierDirectionPurchase && tx.Direction != domain.SupplierDirectionPayment {
+	if tx.Direction != domain.SupplierDirectionPurchase && tx.Direction != domain.SupplierDirectionPayment &&
+		tx.Direction != domain.SupplierDirectionPurchaseReturn && tx.Direction != domain.SupplierDirectionPaymentReturn {
 		return domain.ErrInvalidSupplierDirection
 	}
 
@@ -214,7 +215,8 @@ func (r *PostgresSupplierRepository) ReverseTransaction(ctx context.Context, ten
 	if revTx.Amount.LessThanOrEqual(decimal.Zero) {
 		return domain.ErrInvalidAmount
 	}
-	if revTx.Direction != domain.SupplierDirectionPurchase && revTx.Direction != domain.SupplierDirectionPayment {
+	if revTx.Direction != domain.SupplierDirectionPurchase && revTx.Direction != domain.SupplierDirectionPayment &&
+		revTx.Direction != domain.SupplierDirectionPurchaseReturn && revTx.Direction != domain.SupplierDirectionPaymentReturn {
 		return domain.ErrInvalidSupplierDirection
 	}
 
@@ -467,11 +469,11 @@ func (r *PostgresSupplierRepository) GetSummary(ctx context.Context, tenantID uu
 	var query strings.Builder
 	query.WriteString(`
 		SELECT 
-			COALESCE(SUM(CASE WHEN direction = 'purchase' AND reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN amount ELSE 0 END), 0) AS total_purchases,
-			COALESCE(SUM(CASE WHEN direction = 'payment' AND reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN amount ELSE 0 END), 0) AS total_payments,
-			COALESCE(SUM(CASE WHEN direction = 'purchase' AND reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN amount ELSE 0 END), 0)
-			- COALESCE(SUM(CASE WHEN direction = 'payment' AND reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN amount ELSE 0 END), 0) AS net_balance,
-			COUNT(CASE WHEN reversed_by IS NULL AND NOT EXISTS (SELECT 1 FROM public.supplier_transactions rev WHERE rev.reversed_by = st.id) THEN id END) AS total_rows
+			COALESCE(SUM(CASE WHEN direction = 'purchase' THEN amount WHEN direction = 'purchase_return' THEN -amount ELSE 0 END), 0) AS total_purchases,
+			COALESCE(SUM(CASE WHEN direction = 'payment' THEN amount WHEN direction = 'payment_return' THEN -amount ELSE 0 END), 0) AS total_payments,
+			COALESCE(SUM(CASE WHEN direction = 'purchase' THEN amount WHEN direction = 'purchase_return' THEN -amount ELSE 0 END), 0)
+			- COALESCE(SUM(CASE WHEN direction = 'payment' THEN amount WHEN direction = 'payment_return' THEN -amount ELSE 0 END), 0) AS net_balance,
+			COUNT(id) AS total_rows
 		FROM public.supplier_transactions st
 		WHERE tenant_id = $1
 	`)

@@ -99,10 +99,16 @@ func (s *supplierService) ReverseTransaction(
 		return nil, domain.ErrPeriodLocked
 	}
 
-	// Inverse direction rule: 'purchase' -> 'payment', 'payment' -> 'purchase'
-	oppositeDirection := domain.SupplierDirectionPayment
+	// Muhasebe Usulü 4 İşlem Türü Ters Kayıt Eşlemesi:
+	// - Alış Faturası ('purchase') -> Alış İadesi ('purchase_return') [Alış toplamından düşer, ödeme kutusu kıpırdamaz]
+	// - Ödeme ('payment') -> Ödeme İadesi ('payment_return') [Ödeme toplamından düşer]
+	returnDirection := domain.SupplierDirectionPurchaseReturn
 	if orig.Direction == domain.SupplierDirectionPayment {
-		oppositeDirection = domain.SupplierDirectionPurchase
+		returnDirection = domain.SupplierDirectionPaymentReturn
+	} else if orig.Direction == domain.SupplierDirectionPurchaseReturn {
+		returnDirection = domain.SupplierDirectionPurchase
+	} else if orig.Direction == domain.SupplierDirectionPaymentReturn {
+		returnDirection = domain.SupplierDirectionPayment
 	}
 
 	desc := fmt.Sprintf("[İPTAL/TERS KAYIT] %s", strings.TrimSpace(reason))
@@ -120,7 +126,7 @@ func (s *supplierService) ReverseTransaction(
 		CustomerName:   orig.CustomerName,
 		DocumentStatus: orig.DocumentStatus,
 		TxDate:         time.Now(),
-		Direction:      oppositeDirection,
+		Direction:      returnDirection,
 		Amount:         orig.Amount, // Exact decimal amount preserved
 		Description:    desc,
 		CreatedBy:      createdBy,
