@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, ShoppingBag, CreditCard, AlertCircle } from "lucide-react";
+import { PlusCircle, ShoppingBag, CreditCard, AlertCircle, RotateCcw } from "lucide-react";
 import { Supplier, SupplierDirection } from "@/types/supplier";
 import { apiFetch } from "@/lib/api";
 
