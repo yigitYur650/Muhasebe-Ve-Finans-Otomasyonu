@@ -185,7 +185,7 @@ export function CreateSupplierTransactionDialog({
             )}
           </div>
 
-          {/* Direction Toggle */}
+          {/* Direction Toggle (4 Muhasebe Türü) */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700">{t("direction")}</label>
             <div className="grid grid-cols-2 gap-2">
@@ -199,7 +199,7 @@ export function CreateSupplierTransactionDialog({
                 }`}
               >
                 <ShoppingBag className="w-4 h-4 text-rose-600" />
-                Alınan Mal (Borç +)
+                Alınan Mal (+)
               </button>
               <button
                 type="button"
@@ -212,6 +212,30 @@ export function CreateSupplierTransactionDialog({
               >
                 <CreditCard className="w-4 h-4 text-emerald-600" />
                 Geçilen Ödeme (-)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection("purchase_return")}
+                className={`flex items-center justify-center gap-1.5 p-2 rounded-lg border text-xs font-bold transition-all ${
+                  direction === "purchase_return"
+                    ? "border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-500"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <RotateCcw className="w-4 h-4 text-amber-600" />
+                Alış İadesi (-)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection("payment_return")}
+                className={`flex items-center justify-center gap-1.5 p-2 rounded-lg border text-xs font-bold transition-all ${
+                  direction === "payment_return"
+                    ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <RotateCcw className="w-4 h-4 text-blue-600" />
+                Ödeme İadesi (+)
               </button>
             </div>
           </div>

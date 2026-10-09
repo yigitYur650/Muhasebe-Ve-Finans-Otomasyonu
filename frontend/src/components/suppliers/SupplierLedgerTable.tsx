@@ -100,6 +100,8 @@ export function SupplierLedgerTable({
               <option value="">{t("allDirections")}</option>
               <option value="purchase">{t("purchasesOnly")}</option>
               <option value="payment">{t("paymentsOnly")}</option>
+              <option value="purchase_return">Yalnızca Alış İadeleri (-)</option>
+              <option value="payment_return">Yalnızca Ödeme İadeleri (+)</option>
             </select>
           </div>
 
